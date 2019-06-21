@@ -48,16 +48,17 @@ bool Configuration::load() {
 		return false;
 	}
 
-	DynamicJsonBuffer _jsonBuffer;
-	JsonObject& _jsonData = _jsonBuffer.parseObject(configFile);
+	DynamicJsonDocument _jsonDoc(2048);
+	auto error = deserializeJson(_jsonDoc, configFile);
+	JsonObject _jsonData = _jsonDoc.as<JsonObject>();
 
-	if (!_jsonData.success()) {
+	if (error) {
 		Serial.println("Failed to parse config file.");
 		return false;
 	}
 
-	for (const auto& configItem : _jsonData) {
-		set(configItem.key, configItem.value);
+	for (const auto& configItem: _jsonData) {
+		set(String(configItem.key().c_str()), String(configItem.value().as<char*>()));
 	}
 
 	configFile.close();
@@ -83,17 +84,16 @@ bool Configuration::save() {
 		Serial.println("Configuration empty");
 	}
 
-	DynamicJsonBuffer _jsonBuffer;
-	JsonObject &_jsonData = _jsonBuffer.createObject();
-
+	DynamicJsonDocument _jsonDoc(2048);
+	
 	for (const auto& x : configuration)
 	{
-		_jsonData.set(x.first, String{x.second});
+		_jsonDoc[String(x.first)] = (String(x.second));
 	}
 
-	_jsonData.printTo(configFile);
+	serializeJson(_jsonDoc, configFile);
 #ifdef DEBUG
-	_jsonData.prettyPrintTo(Serial);
+	serializeJsonPretty(_jsonData, Serial);
 #endif
 	configFile.close();
 	_configurationTainted = false;
@@ -102,7 +102,7 @@ bool Configuration::save() {
 
 void Configuration::set(String key, String value) {
 	std::ostringstream debug;
-	debug << "Settting " << key.c_str() << " to " << value.c_str() << "(was " << get(key).c_str() << ")";
+	debug << "Setting " << key.c_str() << " to " << value.c_str() << "(was " << get(key).c_str() << ")";
 	DEBUG_PRINTLN(debug.str().c_str());
 
 	if (get(key) != value) {

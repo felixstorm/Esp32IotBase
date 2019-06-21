@@ -116,13 +116,13 @@ class Configuration {
 		void resetExcept(const std::list<ConfigurationKey> &keysToPreserve);
 
 		// FIXME: Get rid of every direct access ("name") set() and get()
-		// to minimize the rist of unknown-key usage. Move to private.
+		// to minimize the risk of unknown-key usage. Move to private.
 		void set(String key, String value);
 		// FIXME: use this instead
 		void set(ConfigurationKey key, String value);
 
 		// FIXME: Get rid of every direct access ("name") set() and get()
-		// to minimize the rist of unknown-key usage. Move to private.
+		// to minimize the risk of unknown-key usage. Move to private.
 		const String& get(String key) const;
 		// FIXME: use this instead
 		const String& get(ConfigurationKey key) const;
@@ -139,11 +139,11 @@ class Configuration {
 
 	private:
 		static void CheckConfigStatus(void *);
-		String _jsonFile;
 		bool _configurationTainted = false;
 		String noResult_ = {};
 		// Set to true if configuration is memory-only
 		bool _memOnlyConfig;
+		String _jsonFile;
 };
 
 #endif

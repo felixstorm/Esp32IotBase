@@ -59,19 +59,21 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 	server.on("/data.json" , HTTP_GET, [&configuration, this](AsyncWebServerRequest * request)
 	{
 			AsyncJsonResponse *response = new AsyncJsonResponse();
-			DynamicJsonBuffer _jsonBuffer;
+			DynamicJsonDocument _jsonDoc(2048);
+			DynamicJsonDocument _jsonData(2048);
+			
 
-			JsonObject &_jsonData = response->getRoot();
-			JsonArray &elements = _jsonData.createNestedArray("elements");
+			_jsonData = response->getRoot();
+			JsonArray elements = _jsonData.createNestedArray("elements");
 
 			for (const auto &interfaceElement : interfaceElements)
 			{
-				JsonObject &element = elements.createNestedObject();
-				JsonObject &attributes = element.createNestedObject("attributes");
-				element["element"] = _jsonBuffer.strdup(interfaceElement.element);
-				element["id"] = _jsonBuffer.strdup(interfaceElement.id);
-				element["content"] = _jsonBuffer.strdup(interfaceElement.content);
-				element["parent"] = _jsonBuffer.strdup(interfaceElement.parent);
+				JsonObject element = elements.createNestedObject();
+				JsonObject attributes = element.createNestedObject("attributes");
+				element["element"] = _jsonDoc.strdup(interfaceElement.element);
+				element["id"] = _jsonDoc.strdup(interfaceElement.id);
+				element["content"] = _jsonDoc.strdup(interfaceElement.content);
+				element["parent"] = _jsonDoc.strdup(interfaceElement.parent);
 
 				for (const auto &attribute : interfaceElement.attributes)
 				{
@@ -90,7 +92,7 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 				}
 			}
 #ifdef DEBUG
-			_jsonData.prettyPrintTo(Serial);
+			serializeJsonPretty(_jsonData, Serial);
 #endif
 			response->setLength();
 			// NOTE: AsyncServer.send(ptr* foo) deletes `response` after async send.
