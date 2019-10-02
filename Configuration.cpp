@@ -93,7 +93,7 @@ bool Configuration::save() {
 
 	serializeJson(_jsonDoc, configFile);
 #ifdef DEBUG
-	serializeJsonPretty(_jsonData, Serial);
+	serializeJsonPretty(_jsonDoc, Serial);
 #endif
 	configFile.close();
 	_configurationTainted = false;

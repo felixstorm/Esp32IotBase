@@ -15,8 +15,8 @@ namespace {
 }
 
 WebServer::WebServer()
-	: events("/events")
-	, server(80)
+	: server(80)
+	, events("/events")
 {
 	server.addHandler(&events);
 #ifdef BASECAMP_USEDNS
@@ -58,22 +58,19 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 
 	server.on("/data.json" , HTTP_GET, [&configuration, this](AsyncWebServerRequest * request)
 	{
-			AsyncJsonResponse *response = new AsyncJsonResponse();
-			DynamicJsonDocument _jsonDoc(2048);
-			DynamicJsonDocument _jsonData(2048);
+			AsyncJsonResponse *response = new AsyncJsonResponse(false, 8192);
 			
-
-			_jsonData = response->getRoot();
+			JsonObject _jsonData = response->getRoot();
 			JsonArray elements = _jsonData.createNestedArray("elements");
 
 			for (const auto &interfaceElement : interfaceElements)
 			{
 				JsonObject element = elements.createNestedObject();
 				JsonObject attributes = element.createNestedObject("attributes");
-				element["element"] = _jsonDoc.strdup(interfaceElement.element);
-				element["id"] = _jsonDoc.strdup(interfaceElement.id);
-				element["content"] = _jsonDoc.strdup(interfaceElement.content);
-				element["parent"] = _jsonDoc.strdup(interfaceElement.parent);
+				element["element"] = interfaceElement.element;
+				element["id"] = interfaceElement.id;
+				element["content"] = interfaceElement.content;
+				element["parent"] = interfaceElement.parent;
 
 				for (const auto &attribute : interfaceElement.attributes)
 				{
