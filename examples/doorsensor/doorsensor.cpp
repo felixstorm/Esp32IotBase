@@ -1,6 +1,3 @@
-//Define DEBUG to get the Output from DEBUG_PRINTLN
-#define DEBUG 1
-
 //Include Basecamp in this sketch
 #include <Basecamp.hpp>
 #include <Configuration.hpp>
@@ -27,6 +24,11 @@ String delaySleepTopic;
 String statusTopic;
 String batteryTopic;
 String batteryValueTopic;
+
+void onMqttConnect(bool sessionPresent);
+void transmitStatus();
+void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
+void suspendESP(uint16_t packetId);
 
 // Reset the configuration to factory defaults (all empty)
 void resetToFactoryDefaults()
