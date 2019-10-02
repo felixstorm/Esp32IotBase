@@ -29,6 +29,9 @@ enum class ConfigurationKey {
 	mqttPass,
 	otaActive,
 	otaPass,
+	mqttTopicPrefix,
+	haDiscovery,
+	haDiscoveryPrefix,
 };
 
 // TODO: Extend with all known keys
@@ -73,6 +76,15 @@ static const String getKeyName(ConfigurationKey key)
 
 		case ConfigurationKey::otaPass:
 			return "OTAPass";
+
+		case ConfigurationKey::mqttTopicPrefix:
+			return "MQTTTopicPrefix";
+
+		case ConfigurationKey::haDiscovery:
+			return "HaDiscovery";
+
+		case ConfigurationKey::haDiscoveryPrefix:
+			return "HaDiscoveryPrefix";
 	}
 	return "";
 }
