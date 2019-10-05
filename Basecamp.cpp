@@ -269,10 +269,8 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 			web.addInterfaceElement("MQTTPass", "input", "MQTT Password:","#configform" , "MQTTPass");
 			web.setInterfaceElementAttribute("MQTTPass", "type", "password");
 
-			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix ('esp32'):","#configform" , "MQTTTopicPrefix");
-			web.addInterfaceElement("HaDiscovery", "input", "HA Discovery:","#configform" , "HaDiscovery");
-			web.setInterfaceElementAttribute("HaDiscovery", "type", "checkbox");	// TBD: checkbox does not really work yet...
-			web.addInterfaceElement("HaDiscoveryPrefix", "input", "MQTT Topic Prefix ('homeassistant'):","#configform" , "HaDiscoveryPrefix");
+			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (default 'esp32'):","#configform" , "MQTTTopicPrefix");
+			web.addInterfaceElement("HaDiscoveryPrefix", "input", "MQTT Topic Prefix (default 'homeassistant', empty to disable):","#configform" , "HaDiscoveryPrefix");
 		}
 		// Add a save button that calls the JavaScript function collectConfiguration() on click
 		web.addInterfaceElement("saveform", "button", "Save","#configform");
