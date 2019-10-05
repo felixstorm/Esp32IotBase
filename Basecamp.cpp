@@ -269,6 +269,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 			web.addInterfaceElement("MQTTPass", "input", "MQTT Password:","#configform" , "MQTTPass");
 			web.setInterfaceElementAttribute("MQTTPass", "type", "password");
 
+			web.addInterfaceElement("SyslogServer", "input", "Syslog Server (empty to disable):","#configform" , "SyslogServer");
 			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (default 'esp32'):","#configform" , "MQTTTopicPrefix");
 			web.addInterfaceElement("HaDiscoveryPrefix", "input", "MQTT Topic Prefix (default 'homeassistant', empty to disable):","#configform" , "HaDiscoveryPrefix");
 		}

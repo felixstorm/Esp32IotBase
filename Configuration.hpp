@@ -29,6 +29,7 @@ enum class ConfigurationKey {
 	mqttPass,
 	otaActive,
 	otaPass,
+	syslogServer,
 	mqttTopicPrefix,
 	haDiscoveryPrefix,
 };
@@ -75,6 +76,9 @@ static const String getKeyName(ConfigurationKey key)
 
 		case ConfigurationKey::otaPass:
 			return "OTAPass";
+
+		case ConfigurationKey::syslogServer:
+			return "SyslogServer";
 
 		case ConfigurationKey::mqttTopicPrefix:
 			return "MQTTTopicPrefix";
