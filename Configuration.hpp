@@ -35,7 +35,7 @@ enum class ConfigurationKey {
 };
 
 // TODO: Extend with all known keys
-static const String getKeyName(ConfigurationKey key)
+static const String __attribute__((unused)) getKeyName (ConfigurationKey key)
 {
 	// This automatically will break the compiler if a known key has been forgotten
 	// (if the warnings are turned on exactly...)

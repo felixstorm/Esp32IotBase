@@ -13,6 +13,8 @@ uint16_t MqttGuardInterface::mqttPublish(const char* topic, uint8_t qos, bool re
         const char* payload, size_t length, bool dup, uint16_t message_id)
 {
     mqttGuard_->registerPacket(mqttClient_.publish(topic, qos, retain, payload, length, dup, message_id));
+
+    return 1;
 }
 
 AsyncMqttClient& MqttGuardInterface::mqttOnPublish(AsyncMqttClientInternals::OnPublishUserCallback callback)

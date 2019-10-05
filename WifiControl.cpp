@@ -12,7 +12,9 @@
 namespace {
 	// Minumum access point secret length to be generated (8 is min for ESP32)
 	const constexpr unsigned minApSecretLength = 8;
+#ifdef BASECAMP_WIRED_NETWORK
 	static bool eth_connected = false;
+#endif
 }
 
 void WifiControl::begin(String essid, String password, String configured,
@@ -111,7 +113,7 @@ void WifiControl::WiFiEvent(WiFiEvent_t event)
 {
 	Preferences preferences;
 	preferences.begin("basecamp", false);
-	unsigned int bootCounter = preferences.getUInt("bootcounter", 0);
+	unsigned int __attribute__((unused)) bootCounter = preferences.getUInt("bootcounter", 0);
 	// In case somebody wants to know this..
 	DEBUG_PRINTF("[WiFi-event] event. Bootcounter is %d\n", bootCounter);
 	DEBUG_PRINTF("[WiFi-event] event: %d\n", event);
