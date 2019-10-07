@@ -111,7 +111,10 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 				AsyncWebParameter *webParameter = request->getParam(i);
 				if (webParameter->isPost() && webParameter->value().length() != 0)
 				{
-						configuration.set(webParameter->name().c_str(), webParameter->value().c_str());
+						// allow to clear value by entering spaces
+						String valueTrimmed = String(webParameter->value());
+						valueTrimmed.trim();
+						configuration.set(webParameter->name().c_str(), valueTrimmed.c_str());
 				}
 			}
 

@@ -239,7 +239,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		// Set the class attribute of the element to fat-border.
 		web.setInterfaceElementAttribute("heading", "class", "fat-border");
 		// Add a paragraph with some basic information
-		web.addInterfaceElement("infotext1", "p", "Configure your device with the following options:","#wrapper");
+		web.addInterfaceElement("infotext1", "p", "Configure your device with the following options (!!!space to clear!!!):","#wrapper");
 
 		// Add the configuration form, that will include all inputs for config data
 		web.addInterfaceElement("configform", "form", "","#wrapper");
@@ -268,9 +268,9 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 			web.addInterfaceElement("MQTTPass", "input", "MQTT Password:","#configform" , "MQTTPass");
 			web.setInterfaceElementAttribute("MQTTPass", "type", "password");
 
-			web.addInterfaceElement("SyslogServer", "input", "Syslog Server (empty to disable):","#configform" , "SyslogServer");
+			web.addInterfaceElement("SyslogServer", "input", "Syslog Server (space/empty to disable):","#configform" , "SyslogServer");
 			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (default 'esp32'):","#configform" , "MQTTTopicPrefix");
-			web.addInterfaceElement("HaDiscoveryPrefix", "input", "MQTT Topic Prefix (default 'homeassistant', empty to disable):","#configform" , "HaDiscoveryPrefix");
+			web.addInterfaceElement("HaDiscoveryPrefix", "input", "Home Assistant MQTT Discovery Topic Prefix (default 'homeassistant', space/empty to disable):","#configform" , "HaDiscoveryPrefix");
 		}
 		// Add a save button that calls the JavaScript function collectConfiguration() on click
 		web.addInterfaceElement("saveform", "button", "Save","#configform");
