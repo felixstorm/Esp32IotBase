@@ -21,19 +21,19 @@ void WifiControl::begin(String essid, String password, String configured,
 												String hostname, String apSecret)
 {
 #ifdef BASECAMP_WIRED_NETWORK
-	DEBUG_PRINTLN("Connecting to Ethernet");
+	ESP_LOGI("Basecamp", "Connecting to Ethernet");
 	operationMode_ = Mode::client;
 	WiFi.onEvent(WiFiEvent);
 	ETH.begin() ;
 	ETH.setHostname(hostname.c_str());
-	DEBUG_PRINTLN ("Ethernet initialized") ;
-	DEBUG_PRINTLN ("Waiting for connection") ;
+	ESP_LOGD("Basecamp", "Ethernet initialized") ;
+	ESP_LOGI("Basecamp", "Waiting for connection") ;
 	while (!eth_connected) {
-		DEBUG_PRINT (".") ;
+		Serial.print(".") ;
 		delay(100) ;
 	}
 #else
-	DEBUG_PRINTLN("Connecting to Wifi");
+	ESP_LOGI("Basecamp", "Connecting to Wifi");
 	String _wifiConfigured = std::move(configured);
 	_wifiEssid = std::move(essid);
 	_wifiPassword = std::move(password);
@@ -44,9 +44,7 @@ void WifiControl::begin(String essid, String password, String configured,
 	WiFi.onEvent(WiFiEvent);
 	if (_wifiConfigured.equalsIgnoreCase("true")) {
 		operationMode_ = Mode::client;
-		DEBUG_PRINTLN("Wifi is configured");
-		DEBUG_PRINT("Connecting to ");
-		DEBUG_PRINTLN(_wifiEssid);
+		ESP_LOGI("Basecamp", "Wifi is configured, connecting to '%s'", _wifiEssid.c_str());
 
 		WiFi.begin(_wifiEssid.c_str(), _wifiPassword.c_str());
 		WiFi.setHostname(hostname.c_str());
@@ -54,13 +52,12 @@ void WifiControl::begin(String essid, String password, String configured,
 		//WiFi.setAutoReconnect ( true );
 	} else {
 		operationMode_ = Mode::accessPoint;
-		DEBUG_PRINTLN("Wifi is NOT configured");
-		DEBUG_PRINTF("Starting Wifi AP '%s'", _wifiAPName);
+		ESP_LOGW("Basecamp", "Wifi is NOT configured, starting Wifi AP '%s'", _wifiAPName.c_str());
 
 		WiFi.mode(WIFI_AP_STA);
 		if (apSecret.length() > 0) {
 			// Start with password protection
-			DEBUG_PRINTF("Starting AP with password %s\n", apSecret.c_str());
+			ESP_LOGD("Basecamp", "Starting AP with password %s\n", apSecret.c_str());
 			WiFi.softAP(_wifiAPName.c_str(), apSecret.c_str());
 		} else {
 			// Start without password protection
@@ -115,49 +112,40 @@ void WifiControl::WiFiEvent(WiFiEvent_t event)
 	preferences.begin("basecamp", false);
 	unsigned int __attribute__((unused)) bootCounter = preferences.getUInt("bootcounter", 0);
 	// In case somebody wants to know this..
-	DEBUG_PRINTF("[WiFi-event] event. Bootcounter is %d\n", bootCounter);
-	DEBUG_PRINTF("[WiFi-event] event: %d\n", event);
+	ESP_LOGD("Basecamp", "WiFiEvent %d, Bootcounter is %d", event, bootCounter);
 #ifdef BASECAMP_WIRED_NETWORK
 	switch (event) {
     case SYSTEM_EVENT_ETH_START:
-      DEBUG_PRINTLN("ETH Started");
+      ESP_LOGI("Basecamp", "ETH Started");
       break;
     case SYSTEM_EVENT_ETH_CONNECTED:
-      DEBUG_PRINTLN("ETH Connected");
+      ESP_LOGI("Basecamp", "ETH Connected");
       break;
     case SYSTEM_EVENT_ETH_GOT_IP:
-      DEBUG_PRINT("ETH MAC: ");
-      DEBUG_PRINT(ETH.macAddress());
-      DEBUG_PRINT(", IPv4: ");
-      DEBUG_PRINT(ETH.localIP());
-      if (ETH.fullDuplex()) {
-        DEBUG_PRINT(", FULL_DUPLEX");
-      }
-      DEBUG_PRINT(", ");
-      DEBUG_PRINT(ETH.linkSpeed());
-      DEBUG_PRINTLN("Mbps");
+	  ESP_LOGI("Basecamp", "ETH Got IPv4 %s (%d Mbps, full duplex: %d, MAC %s)", ETH.localIP(), ETH.linkSpeed(), ETH.fullDuplex(), ETH.macAddress());
       eth_connected = true;
       break;
     case SYSTEM_EVENT_ETH_DISCONNECTED:
-      DEBUG_PRINTLN("ETH Disconnected");
+      ESP_LOGI("Basecamp", "ETH Disconnected");
       eth_connected = false;
       break;
     case SYSTEM_EVENT_ETH_STOP:
-      DEBUG_PRINTLN("ETH Stopped");
+      ESP_LOGI("Basecamp", "ETH Stopped");
       eth_connected = false;
       break;
     default:
       break;
   }
 #else
+	IPAddress ip __attribute__((unused));
 	switch(event) {
 		case SYSTEM_EVENT_STA_GOT_IP:
-			DEBUG_PRINT("Wifi IP address: ");
-			DEBUG_PRINTLN(WiFi.localIP());
+			ip = WiFi.localIP();
+			ESP_LOGI("Basecamp", "WIFI Got IPv4 address %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 			preferences.putUInt("bootcounter", 0);
 			break;
 		case SYSTEM_EVENT_STA_DISCONNECTED:
-			DEBUG_PRINTLN("WiFi lost connection");
+			ESP_LOGI("Basecamp", "WIFI Lost connection");
 			WiFi.reconnect();
 			break;
 		default:

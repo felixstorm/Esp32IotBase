@@ -100,7 +100,7 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 	server.on("/submitconfig", HTTP_POST, [&configuration, submitFunc, this](AsyncWebServerRequest *request)
 	{
 			if (request->params() == 0) {
-				DEBUG_PRINTLN("Refusing to take over an empty configuration submission.");
+				ESP_LOGD("WebServer", "Refusing to take over an empty configuration submission.");
 				request->send(500);
 				return;
 			}

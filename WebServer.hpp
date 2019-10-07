@@ -7,7 +7,7 @@
 #ifndef WebServer_h
 #define WebServer_h
 
-#include "debug.hpp"
+#include <Esp32Logging.hpp>
 
 #include <map>
 #include <vector>

@@ -28,14 +28,14 @@ void Configuration::setFileName(const String& filename) {
 }
 
 bool Configuration::load() {
-	DEBUG_PRINTLN("Loading config file ");
+	ESP_LOGD("Configuration", "Loading config file");
 	
 	if (_memOnlyConfig) {
-		DEBUG_PRINTLN("Memory-only configuration: Nothing loaded!");
+		ESP_LOGD("Configuration", "Memory-only configuration: Nothing loaded!");
 		return false;
 	}
 	
-	DEBUG_PRINTLN(_jsonFile);
+	ESP_LOGD("Configuration", "JSON File: %s", _jsonFile.c_str());
 	if (!SPIFFS.begin(true)) {
 		Serial.println("Could not access SPIFFS.");
 		return false;
@@ -66,10 +66,10 @@ bool Configuration::load() {
 }
 
 bool Configuration::save() {
-	DEBUG_PRINTLN("Saving config file");
+	ESP_LOGD("Configuration", "Saving config file");
 	
 	if (_memOnlyConfig) {
-		DEBUG_PRINTLN("Memory-only configuration: Nothing saved!");
+		ESP_LOGD("Configuration", "Memory-only configuration: Nothing saved!");
 		return false;
 	}
 
@@ -101,15 +101,13 @@ bool Configuration::save() {
 }
 
 void Configuration::set(String key, String value) {
-	std::ostringstream debug;
-	debug << "Setting " << key.c_str() << " to " << value.c_str() << "(was " << get(key).c_str() << ")";
-	DEBUG_PRINTLN(debug.str().c_str());
+	ESP_LOGD("Configuration", "Setting %s to %s (was %s)", key.c_str(), value.c_str(), get(key).c_str());
 
 	if (get(key) != value) {
 		_configurationTainted = true;
 		configuration[key] = value;
 	} else {
-		DEBUG_PRINTLN("Cowardly refusing to overwrite existing key with the same value");
+		ESP_LOGD("Configuration", "Cowardly refusing to overwrite existing key with the same value");
 	}
 }
 
@@ -122,10 +120,7 @@ const String &Configuration::get(String key) const
 {
 	auto found = configuration.find(key);
 	if (found != configuration.end()) {
-		std::ostringstream debug;
-		debug << "Config value for " << key.c_str() << ": " << found->second.c_str();
-		DEBUG_PRINTLN(debug.str().c_str());
-
+		ESP_LOGD("Configuration", "Config value for %s: %s", key.c_str(), found->second.c_str());
 		return found->second;
 	}
 

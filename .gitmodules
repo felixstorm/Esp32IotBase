@@ -10,3 +10,6 @@
 [submodule "external/async-mqtt-client"]
 	path = external/async-mqtt-client
 	url = https://github.com/marvinroger/async-mqtt-client
+[submodule "external/Esp32Logging"]
+	path = external/Esp32Logging
+	url = https://github.com/felixstorm/Esp32Logging.git

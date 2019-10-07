@@ -6,7 +6,7 @@
 
 #ifndef Basecamp_h
 #define Basecamp_h
-#include "debug.hpp"
+#include <Esp32Logging.hpp>
 #include "Configuration.hpp"
 #include <Preferences.h>
 #include <rom/rtc.h>

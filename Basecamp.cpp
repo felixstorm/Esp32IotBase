@@ -6,7 +6,6 @@
 
 #include <iomanip>
 #include "Basecamp.hpp"
-#include "debug.hpp"
 
 namespace {
 	const constexpr uint16_t defaultThreadStackSize = 3072;
@@ -44,7 +43,7 @@ String Basecamp::_cleanHostname()
 			clean_hostname.setCharAt(i,'-');
 		};
 	};
-	DEBUG_PRINTLN(clean_hostname);
+	ESP_LOGD("Basecamp", "clean_hostname: %s", clean_hostname.c_str());
 
 	// return cleaned hostname String
 	return clean_hostname;
@@ -94,14 +93,14 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 	// Load configuration from internal flash storage.
 	// If configuration.load() fails, reset the configuration
 	if (!configuration.load()) {
-		DEBUG_PRINTLN("Configuration is broken. Resetting.");
+		ESP_LOGW("Basecamp", "Configuration is broken. Resetting.");
 		configuration.reset();
 	};
 
 	// Get a cleaned version of the device name.
 	// It is used as a hostname for DHCP and ArduinoOTA.
 	hostname = _cleanHostname();
-	DEBUG_PRINTLN(hostname);
+	ESP_LOGD("Basecamp", "hostname: %s", hostname.c_str());
 
 	// Have checkResetReason() control if the device configuration
 	// should be reset or not.
@@ -126,7 +125,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		configuration.save();
 	}
 
-	DEBUG_PRINTF("Secret: %s\n", configuration.get(ConfigurationKey::accessPointSecret).c_str());
+	ESP_LOGD("Basecamp", "accessPointSecret: %s", configuration.get(ConfigurationKey::accessPointSecret).c_str());
 
 	// Initialize Wifi with the stored configuration data.
 	wifi.begin(
@@ -387,8 +386,7 @@ void Basecamp::checkResetReason()
 	preferences.begin("basecamp", false);
 	// Get the reset reason for the current boot
 	int reason = rtc_get_reset_reason(0);
-	DEBUG_PRINT("Reset reason: ");
-	DEBUG_PRINTLN(reason);
+	ESP_LOGI("Basecamp", "Reset reason: %d", reason);
 	// If the reason is caused by a power cycle (1) or a RTC reset / button press(16) evaluate the current
 	// bootcount and act accordingly.
 	if (reason == 1 || reason == 16) {
@@ -396,13 +394,12 @@ void Basecamp::checkResetReason()
 		unsigned int bootCounter = preferences.getUInt("bootcounter", 0);
 		// increment it
 		bootCounter++;
-		DEBUG_PRINT("Unsuccessful boots: ");
-		DEBUG_PRINTLN(bootCounter);
+		ESP_LOGI("Basecamp", "Unsuccessful boots: %d", bootCounter);
 
 		// If the counter is bigger than 3 it will be the fifths consecutive unsucessful reboot.
 		// This forces a reset of the WiFi configuration and the AP will be opened again
 		if (bootCounter > 3){
-			DEBUG_PRINTLN("Configuration forcibly reset.");
+			ESP_LOGW("Basecamp", "Configuration forcibly reset.");
 			// Mark the WiFi configuration as invalid
 			configuration.set(ConfigurationKey::wifiConfigured, "False");
 			// Save the configuration immediately

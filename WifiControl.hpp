@@ -7,7 +7,8 @@
 #ifndef WifiControl_h
 #define WifiControl_h
 
-#include "debug.hpp"
+#include <Esp32Logging.hpp>
+
 #include <iomanip>
 #include <sstream>
 #include <WiFi.h>
