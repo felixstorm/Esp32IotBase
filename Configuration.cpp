@@ -5,6 +5,10 @@
    */
 #include "Configuration.hpp"
 
+namespace {
+	const constexpr char* kLoggingTag = "BasecampConfig";
+}
+
 Configuration::Configuration()
 	: _memOnlyConfig( true ),
 	_jsonFile()
@@ -28,23 +32,23 @@ void Configuration::setFileName(const String& filename) {
 }
 
 bool Configuration::load() {
-	ESP_LOGD("Configuration", "Loading config file");
+	ESP_LOGD(kLoggingTag, "Loading config file");
 	
 	if (_memOnlyConfig) {
-		ESP_LOGD("Configuration", "Memory-only configuration: Nothing loaded!");
+		ESP_LOGD(kLoggingTag, "Memory-only configuration: Nothing loaded!");
 		return false;
 	}
 	
-	ESP_LOGD("Configuration", "JSON File: %s", _jsonFile.c_str());
+	ESP_LOGD(kLoggingTag, "JSON File: %s", _jsonFile.c_str());
 	if (!SPIFFS.begin(true)) {
-		Serial.println("Could not access SPIFFS.");
+		ESP_LOGE(kLoggingTag, "Could not access SPIFFS.");
 		return false;
 	}
 
 	File configFile = SPIFFS.open(_jsonFile, "r");
 
 	if (!configFile || configFile.isDirectory()) {
-		Serial.println("Failed to open config file");
+		ESP_LOGE(kLoggingTag, "Failed to open config file");
 		return false;
 	}
 
@@ -53,7 +57,7 @@ bool Configuration::load() {
 	JsonObject _jsonData = _jsonDoc.as<JsonObject>();
 
 	if (error) {
-		Serial.println("Failed to parse config file.");
+		ESP_LOGE(kLoggingTag, "Failed to parse config file.");
 		return false;
 	}
 
@@ -66,22 +70,22 @@ bool Configuration::load() {
 }
 
 bool Configuration::save() {
-	ESP_LOGD("Configuration", "Saving config file");
+	ESP_LOGD(kLoggingTag, "Saving config file");
 	
 	if (_memOnlyConfig) {
-		ESP_LOGD("Configuration", "Memory-only configuration: Nothing saved!");
+		ESP_LOGD(kLoggingTag, "Memory-only configuration: Nothing saved!");
 		return false;
 	}
 
 	File configFile = SPIFFS.open(_jsonFile, "w");
 	if (!configFile) {
-		Serial.println("Failed to open config file for writing");
+		ESP_LOGE(kLoggingTag, "Failed to open config file for writing");
 		return false;
 	}
 
 	if (configuration.empty())
 	{
-		Serial.println("Configuration empty");
+		ESP_LOGI(kLoggingTag, "Configuration empty");
 	}
 
 	DynamicJsonDocument _jsonDoc(2048);
@@ -101,13 +105,13 @@ bool Configuration::save() {
 }
 
 void Configuration::set(String key, String value) {
-	ESP_LOGD("Configuration", "Setting %s to %s (was %s)", key.c_str(), value.c_str(), get(key).c_str());
+	ESP_LOGD(kLoggingTag, "Setting %s to %s (was %s)", key.c_str(), value.c_str(), get(key).c_str());
 
 	if (get(key) != value) {
 		_configurationTainted = true;
 		configuration[key] = value;
 	} else {
-		ESP_LOGD("Configuration", "Cowardly refusing to overwrite existing key with the same value");
+		ESP_LOGD(kLoggingTag, "Cowardly refusing to overwrite existing key with the same value");
 	}
 }
 
@@ -120,7 +124,7 @@ const String &Configuration::get(String key) const
 {
 	auto found = configuration.find(key);
 	if (found != configuration.end()) {
-		ESP_LOGD("Configuration", "Config value for %s: %s", key.c_str(), found->second.c_str());
+		ESP_LOGD(kLoggingTag, "Config value for %s: %s", key.c_str(), found->second.c_str());
 		return found->second;
 	}
 
@@ -192,12 +196,9 @@ void Configuration::resetExcept(const std::list<ConfigurationKey> &keysToPreserv
 }
 
 void Configuration::dump() {
-#ifdef DEBUG
+#ifndef DEBUG
 	for (const auto &p : configuration) {
-		Serial.print( "configuration[");
-		Serial.print(p.first);
-		Serial.print("] = ");
-		Serial.println(p.second);
+		ESP_LOGD(kLoggingTag, "configuration[%s] = %s", p.first.c_str(), p.second.c_str());
 	}
 #endif
 }

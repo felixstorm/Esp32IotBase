@@ -7,6 +7,8 @@
 #include "WebServer.hpp"
 
 namespace {
+	const constexpr char* kLoggingTag = "BasecampWeb";
+
 	template<typename NAMEVALUETYPE>
 	void debugPrint(std::ostream &stream, NAMEVALUETYPE &nameAndValue)
 	{
@@ -100,7 +102,7 @@ void WebServer::begin(Configuration &configuration, std::function<void()> submit
 	server.on("/submitconfig", HTTP_POST, [&configuration, submitFunc, this](AsyncWebServerRequest *request)
 	{
 			if (request->params() == 0) {
-				ESP_LOGD("WebServer", "Refusing to take over an empty configuration submission.");
+				ESP_LOGD(kLoggingTag, "Refusing to take over an empty configuration submission.");
 				request->send(500);
 				return;
 			}
@@ -189,7 +191,7 @@ void WebServer::debugPrintRequest(AsyncWebServerRequest *request)
 				output << std::endl;
 		}
 
-		Serial.println(output.str().c_str());
+		ESP_LOGD(kLoggingTag, "%s", output.str().c_str());
 #endif
 }
 

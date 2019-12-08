@@ -8,6 +8,7 @@
 #include "Basecamp.hpp"
 
 namespace {
+	const constexpr char* kLoggingTag = "Basecamp";
 	const constexpr uint16_t defaultThreadStackSize = 3072;
 	const constexpr UBaseType_t defaultThreadPriority = 0;
 	// Default length for access point mode password
@@ -43,7 +44,7 @@ String Basecamp::_cleanHostname()
 			clean_hostname.setCharAt(i,'-');
 		};
 	};
-	ESP_LOGD("Basecamp", "clean_hostname: %s", clean_hostname.c_str());
+	ESP_LOGD(kLoggingTag, "clean_hostname: %s", clean_hostname.c_str());
 
 	// return cleaned hostname String
 	return clean_hostname;
@@ -80,27 +81,26 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		if (fixedWiFiApEncryptionPassword.length() >= network.getMinimumSecretLength()) {
 			setupModeWifiEncryption_ = SetupModeWifiEncryption::secured;
 		} else {
-			Serial.println("Error: Given fixed ap secret is too short. Refusing.");
+			ESP_LOGE(kLoggingTag, "Error: Given fixed ap secret is too short. Refusing.");
 		}
 	}
 
-	// Enable serial output
-	Serial.begin(115200);
 	// Display a simple lifesign
-	Serial.println("");
-	Serial.println("Basecamp Startup");
+	ESP_LOGW(kLoggingTag, "********************");
+	ESP_LOGW(kLoggingTag, "Basecamp Startup");
+	ESP_LOGW(kLoggingTag, "********************");
 
 	// Load configuration from internal flash storage.
 	// If configuration.load() fails, reset the configuration
 	if (!configuration.load()) {
-		ESP_LOGW("Basecamp", "Configuration is broken. Resetting.");
+		ESP_LOGW(kLoggingTag, "Configuration is broken. Resetting.");
 		configuration.reset();
 	};
 
 	// Get a cleaned version of the device name.
 	// It is used as a hostname for DHCP and ArduinoOTA.
 	hostname = _cleanHostname();
-	ESP_LOGD("Basecamp", "hostname: %s", hostname.c_str());
+	ESP_LOGD(kLoggingTag, "hostname: %s", hostname.c_str());
 
 	// Have checkResetReason() control if the device configuration
 	// should be reset or not.
@@ -116,16 +116,16 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		String apSecret = fixedWiFiApEncryptionPassword;
 		if (apSecret.length() < network.getMinimumSecretLength()) {
 			// Not set or too short. Generate a random one.
-			Serial.println("Generating access point secret.");
+			ESP_LOGW(kLoggingTag, "Generating access point secret.");
 			apSecret = network.generateRandomSecret(defaultApSecretLength);
 		} else {
-			Serial.println("Using fixed access point secret.");
+			ESP_LOGW(kLoggingTag, "Using fixed access point secret.");
 		}
 		configuration.set(ConfigurationKey::accessPointSecret, apSecret);
 		configuration.save();
 	}
 
-	ESP_LOGD("Basecamp", "accessPointSecret: %s", configuration.get(ConfigurationKey::accessPointSecret).c_str());
+	ESP_LOGD(kLoggingTag, "accessPointSecret: %s", configuration.get(ConfigurationKey::accessPointSecret).c_str());
 #endif
 
 	// Initialize Wifi with the stored configuration data.
@@ -197,24 +197,24 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 					type = "filesystem";
 					SPIFFS.end();
 
-					Serial.println("Start updating " + type);
+					ESP_LOGW(kLoggingTag, "Start updating %s", type.c_str());
 					})
 		// When the update ends print it to serial
 		.onEnd([]() {
-				Serial.println("\nEnd");
+				ESP_LOGW(kLoggingTag, "\nEnd");
 				})
 		// Show the progress of the update
 		.onProgress([](unsigned int progress, unsigned int total) {
-				Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+				ESP_LOGI(kLoggingTag, "Progress: %u%%\r", (progress / (total / 100)));
 				})
 		// Error handling for the update
 		.onError([](ota_error_t error) {
-				Serial.printf("Error[%u]: ", error);
-				if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-				else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-				else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-				else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-				else if (error == OTA_END_ERROR) Serial.println("End Failed");
+				ESP_LOGE(kLoggingTag, "Error[%u]: ", error);
+				if (error == OTA_AUTH_ERROR) ESP_LOGW(kLoggingTag, "Auth Failed");
+				else if (error == OTA_BEGIN_ERROR) ESP_LOGW(kLoggingTag, "Begin Failed");
+				else if (error == OTA_CONNECT_ERROR) ESP_LOGW(kLoggingTag, "Connect Failed");
+				else if (error == OTA_RECEIVE_ERROR) ESP_LOGW(kLoggingTag, "Receive Failed");
+				else if (error == OTA_END_ERROR) ESP_LOGW(kLoggingTag, "End Failed");
 				});
 
 		// Start the OTA service
@@ -303,7 +303,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		});
 	}
 	#endif
-	Serial.println(showSystemInfo());
+	ESP_LOGW(kLoggingTag, "%s", showSystemInfo().c_str());
 
 	// TODO: only return true if everything setup up correctly
 	return true;
@@ -335,7 +335,7 @@ TimerHandle_t Basecamp::mqttReconnectTimer;
   
 void Basecamp::onMqttDisconnect(AsyncMqttClientDisconnectReason reason) 
 {
-  Serial.print("MQTT Disconnected. Reason: "); Serial.println((int)reason, DEC); 
+  ESP_LOGW(kLoggingTag, "MQTT Disconnected. Reason: %i", (int)reason);
   xTimerStart(mqttReconnectTimer, 0);
 }
 
@@ -345,16 +345,16 @@ void Basecamp::connectToMqtt(TimerHandle_t xTimer)
   AsyncMqttClient *mqtt = (AsyncMqttClient *) pvTimerGetTimerID(xTimer);
 
   if (NetworkControl::isConnected()) {
-    Serial.println("Trying to connect ...");
+    ESP_LOGI(kLoggingTag, "Trying to connect ...");
     mqtt->connect();    // has no effect if already connected ( if (_connected) return;) 
     reconnect = 0;
   }
   else {
-    Serial.println("Waiting for WiFi ...");
+    ESP_LOGW(kLoggingTag, "Waiting for network ...");
     reconnect++;
     if (reconnect >= 3)
     {
-      Serial.println("Initiating WiFi reconnect...");
+      ESP_LOGW(kLoggingTag, "Initiating WiFi reconnect...");
       reconnect = 0;
       WiFi.reconnect();
     }
@@ -389,7 +389,7 @@ void Basecamp::checkResetReason()
 	preferences.begin("basecamp", false);
 	// Get the reset reason for the current boot
 	int reason = rtc_get_reset_reason(0);
-	ESP_LOGI("Basecamp", "Reset reason: %d", reason);
+	ESP_LOGI(kLoggingTag, "Reset reason: %d", reason);
 	// If the reason is caused by a power cycle (1) or a RTC reset / button press(16) evaluate the current
 	// bootcount and act accordingly.
 	if (reason == 1 || reason == 16) {
@@ -397,12 +397,12 @@ void Basecamp::checkResetReason()
 		unsigned int bootCounter = preferences.getUInt("bootcounter", 0);
 		// increment it
 		bootCounter++;
-		ESP_LOGI("Basecamp", "Unsuccessful boots: %d", bootCounter);
+		ESP_LOGI(kLoggingTag, "Unsuccessful boots: %d", bootCounter);
 
 		// If the counter is bigger than 3 it will be the fifths consecutive unsucessful reboot.
 		// This forces a reset of the WiFi configuration and the AP will be opened again
 		if (bootCounter > 3){
-			ESP_LOGW("Basecamp", "Configuration forcibly reset.");
+			ESP_LOGW(kLoggingTag, "Configuration forcibly reset.");
 			// Mark the WiFi configuration as invalid
 			configuration.set(ConfigurationKey::wifiConfigured, "False");
 			// Save the configuration immediately
@@ -411,20 +411,20 @@ void Basecamp::checkResetReason()
 			preferences.putUInt("bootcounter", 0);
 			// Call the destructor for preferences so that all data is safely stored befor rebooting
 			preferences.end();
-			Serial.println("Resetting the WiFi configuration.");
+			ESP_LOGW(kLoggingTag, "Resetting the WiFi configuration.");
 			// Reboot
 			ESP.restart();
 
 			// If the WiFi is unconfigured and the device is rebooted twice format the internal flash storage
 		} else if (bootCounter > 2 && configuration.get(ConfigurationKey::wifiConfigured).equalsIgnoreCase("false")) {
-			Serial.println("Factory reset was forced.");
+			ESP_LOGW(kLoggingTag, "Factory reset was forced.");
 			// Format the flash storage
 			SPIFFS.format();
 			// Reset the boot counter
 			preferences.putUInt("bootcounter", 0);
 			// Call the destructor for preferences so that all data is safely stored befor rebooting
 			preferences.end();
-			Serial.println("Rebooting.");
+			ESP_LOGW(kLoggingTag, "Rebooting.");
 			// Reboot
 			ESP.restart();
 

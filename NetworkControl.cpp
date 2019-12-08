@@ -10,6 +10,8 @@
 #endif
 
 namespace {
+	const constexpr char* kLoggingTag = "BasecampNetwork";
+
 	// Minumum access point secret length to be generated (8 is min for ESP32)
 	const constexpr unsigned minApSecretLength = 8;
 #ifdef BASECAMP_NETWORK_ETHERNET
@@ -21,19 +23,19 @@ void NetworkControl::begin(String essid, String password, String configured,
 												String hostname, String apSecret)
 {
 #ifdef BASECAMP_NETWORK_ETHERNET
-	ESP_LOGI("Basecamp", "Connecting to Ethernet");
+	ESP_LOGI(kLoggingTag, "Connecting to Ethernet");
 	operationMode_ = Mode::client;
 	WiFi.onEvent(WiFiEvent);
 	ETH.begin() ;
 	ETH.setHostname(hostname.c_str());
-	ESP_LOGD("Basecamp", "Ethernet initialized") ;
-	ESP_LOGI("Basecamp", "Waiting for connection") ;
+	ESP_LOGD(kLoggingTag, "Ethernet initialized") ;
+	ESP_LOGI(kLoggingTag, "Waiting for connection") ;
 	while (!eth_connected) {
 		Serial.print(".") ;
 		delay(100) ;
 	}
 #else
-	ESP_LOGI("Basecamp", "Connecting to Wifi");
+	ESP_LOGI(kLoggingTag, "Connecting to Wifi");
 	String _wifiConfigured = std::move(configured);
 	_wifiEssid = std::move(essid);
 	_wifiPassword = std::move(password);
@@ -44,7 +46,7 @@ void NetworkControl::begin(String essid, String password, String configured,
 	WiFi.onEvent(WiFiEvent);
 	if (_wifiConfigured.equalsIgnoreCase("true")) {
 		operationMode_ = Mode::client;
-		ESP_LOGI("Basecamp", "Wifi is configured, connecting to '%s'", _wifiEssid.c_str());
+		ESP_LOGI(kLoggingTag, "Wifi is configured, connecting to '%s'", _wifiEssid.c_str());
 
 		WiFi.begin(_wifiEssid.c_str(), _wifiPassword.c_str());
 		// TBD klären
@@ -56,12 +58,12 @@ void NetworkControl::begin(String essid, String password, String configured,
 		//WiFi.setAutoReconnect ( true );
 	} else {
 		operationMode_ = Mode::accessPoint;
-		ESP_LOGW("Basecamp", "Wifi is NOT configured, starting Wifi AP '%s'", _wifiAPName.c_str());
+		ESP_LOGW(kLoggingTag, "Wifi is NOT configured, starting Wifi AP '%s'", _wifiAPName.c_str());
 
 		WiFi.mode(WIFI_AP_STA);
 		if (apSecret.length() > 0) {
 			// Start with password protection
-			ESP_LOGD("Basecamp", "Starting AP with password %s\n", apSecret.c_str());
+			ESP_LOGD(kLoggingTag, "Starting AP with password %s\n", apSecret.c_str());
 			WiFi.softAP(_wifiAPName.c_str(), apSecret.c_str());
 		} else {
 			// Start without password protection
@@ -116,25 +118,25 @@ void NetworkControl::WiFiEvent(WiFiEvent_t event)
 	preferences.begin("basecamp", false);
 	unsigned int __attribute__((unused)) bootCounter = preferences.getUInt("bootcounter", 0);
 	// In case somebody wants to know this..
-	ESP_LOGD("Basecamp", "WiFiEvent %d, Bootcounter is %d", event, bootCounter);
+	ESP_LOGD(kLoggingTag, "WiFiEvent %d, Bootcounter is %d", event, bootCounter);
 #ifdef BASECAMP_NETWORK_ETHERNET
 	switch (event) {
     case SYSTEM_EVENT_ETH_START:
-      ESP_LOGI("Basecamp", "ETH Started");
+      ESP_LOGI(kLoggingTag, "ETH Started");
       break;
     case SYSTEM_EVENT_ETH_CONNECTED:
-      ESP_LOGI("Basecamp", "ETH Connected");
+      ESP_LOGI(kLoggingTag, "ETH Connected");
       break;
     case SYSTEM_EVENT_ETH_GOT_IP:
-	  ESP_LOGI("Basecamp", "ETH Got IPv4 %s (%d Mbps, full duplex: %d, MAC %s)", ETH.localIP().toString().c_str(), ETH.linkSpeed(), ETH.fullDuplex(), ETH.macAddress().c_str());
+	  ESP_LOGI(kLoggingTag, "ETH Got IPv4 %s (%d Mbps, full duplex: %d, MAC %s)", ETH.localIP().toString().c_str(), ETH.linkSpeed(), ETH.fullDuplex(), ETH.macAddress().c_str());
       eth_connected = true;
       break;
     case SYSTEM_EVENT_ETH_DISCONNECTED:
-      ESP_LOGI("Basecamp", "ETH Disconnected");
+      ESP_LOGI(kLoggingTag, "ETH Disconnected");
       eth_connected = false;
       break;
     case SYSTEM_EVENT_ETH_STOP:
-      ESP_LOGI("Basecamp", "ETH Stopped");
+      ESP_LOGI(kLoggingTag, "ETH Stopped");
       eth_connected = false;
       break;
     default:
@@ -145,11 +147,11 @@ void NetworkControl::WiFiEvent(WiFiEvent_t event)
 	switch(event) {
 		case SYSTEM_EVENT_STA_GOT_IP:
 			ip = WiFi.localIP();
-			ESP_LOGI("Basecamp", "WIFI Got IPv4 address %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+			ESP_LOGI(kLoggingTag, "WIFI Got IPv4 address %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 			preferences.putUInt("bootcounter", 0);
 			break;
 		case SYSTEM_EVENT_STA_DISCONNECTED:
-			ESP_LOGI("Basecamp", "WIFI Lost connection");
+			ESP_LOGI(kLoggingTag, "WIFI Lost connection");
 			WiFi.reconnect();
 			break;
 		default:
