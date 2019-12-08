@@ -60,7 +60,7 @@ bool Basecamp::isSetupModeWifiEncrypted(){
  * Returns the SSID of the setup WiFi network
  */
 String Basecamp::getSetupModeWifiName(){
-	return wifi.getAPName();
+	return network.getAPName();
 }
 
 /**
@@ -77,7 +77,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 {
 	// Make sure we only accept valid passwords for ap
 	if (fixedWiFiApEncryptionPassword.length() != 0) {
-		if (fixedWiFiApEncryptionPassword.length() >= wifi.getMinimumSecretLength()) {
+		if (fixedWiFiApEncryptionPassword.length() >= network.getMinimumSecretLength()) {
 			setupModeWifiEncryption_ = SetupModeWifiEncryption::secured;
 		} else {
 			Serial.println("Error: Given fixed ap secret is too short. Refusing.");
@@ -106,18 +106,18 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 	// should be reset or not.
 	checkResetReason();
 
-#ifndef BASECAMP_NOWIFI
-
+#ifndef BASECAMP_NO_NETWORK
+#ifndef BASECAMP_NETWORK_ETHERNET
 	// If there is no access point secret set yet, generate one and save it.
 	// It will survive the default config reset.
 	if (!configuration.isKeySet(ConfigurationKey::accessPointSecret) ||
-		fixedWiFiApEncryptionPassword.length() >= wifi.getMinimumSecretLength())
+		fixedWiFiApEncryptionPassword.length() >= network.getMinimumSecretLength())
 	{
 		String apSecret = fixedWiFiApEncryptionPassword;
-		if (apSecret.length() < wifi.getMinimumSecretLength()) {
+		if (apSecret.length() < network.getMinimumSecretLength()) {
 			// Not set or too short. Generate a random one.
 			Serial.println("Generating access point secret.");
-			apSecret = wifi.generateRandomSecret(defaultApSecretLength);
+			apSecret = network.generateRandomSecret(defaultApSecretLength);
 		} else {
 			Serial.println("Using fixed access point secret.");
 		}
@@ -126,9 +126,10 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 	}
 
 	ESP_LOGD("Basecamp", "accessPointSecret: %s", configuration.get(ConfigurationKey::accessPointSecret).c_str());
+#endif
 
 	// Initialize Wifi with the stored configuration data.
-	wifi.begin(
+	network.begin(
 			configuration.get(ConfigurationKey::wifiEssid), // The (E)SSID or WiFi-Name
 			configuration.get(ConfigurationKey::wifiPassword), // The WiFi password
 			configuration.get(ConfigurationKey::wifiConfigured), // Has the WiFi been configured
@@ -137,7 +138,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 	);
 
 	// Get WiFi MAC
-	mac = wifi.getSoftwareMacAddress(":");
+	mac = network.getSoftwareMacAddress(":");
 #endif
 #ifndef BASECAMP_NOMQTT
 	// Check if MQTT has been disabled by the user
@@ -248,15 +249,17 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 
 		web.addInterfaceElement("DeviceName", "input", "Device name","#configform" , "DeviceName");
 
-#ifndef BASECAMP_WIRED_NETWORK
+#ifndef BASECAMP_NETWORK_ETHERNET
 		// Add an input field for the WIFI data and link it to the corresponding configuration data
 		web.addInterfaceElement("WifiEssid", "input", "WIFI SSID:","#configform" , "WifiEssid");
 		web.addInterfaceElement("WifiPassword", "input", "WIFI Password:", "#configform", "WifiPassword");
 		web.setInterfaceElementAttribute("WifiPassword", "type", "password");
+#endif
+		// Need to keep these even without WIFI as otherwise basecamp.js will crash
 		web.addInterfaceElement("WifiConfigured", "input", "", "#configform", "WifiConfigured");
 		web.setInterfaceElementAttribute("WifiConfigured", "type", "hidden");
 		web.setInterfaceElementAttribute("WifiConfigured", "value", "true");
-#endif
+
 		// Add input fields for MQTT configurations if it hasn't been disabled
 		if (!configuration.get(ConfigurationKey::mqttActive).equalsIgnoreCase("false")) {
 			web.addInterfaceElement("MQTTHost", "input", "MQTT Host:","#configform" , "MQTTHost");
@@ -269,8 +272,8 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 			web.setInterfaceElementAttribute("MQTTPass", "type", "password");
 
 			web.addInterfaceElement("SyslogServer", "input", "Syslog Server (space/empty to disable):","#configform" , "SyslogServer");
-			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (default 'esp32'):","#configform" , "MQTTTopicPrefix");
-			web.addInterfaceElement("HaDiscoveryPrefix", "input", "Home Assistant MQTT Discovery Topic Prefix (default 'homeassistant', space/empty to disable):","#configform" , "HaDiscoveryPrefix");
+			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (suggested 'esp-basecamp'):","#configform" , "MQTTTopicPrefix");
+			web.addInterfaceElement("HaDiscoveryPrefix", "input", "Home Assistant MQTT Discovery Topic Prefix (suggested 'homeassistant', space/empty to disable):","#configform" , "HaDiscoveryPrefix");
 		}
 		// Add a save button that calls the JavaScript function collectConfiguration() on click
 		web.addInterfaceElement("saveform", "button", "Save","#configform");
@@ -287,7 +290,7 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 		#ifdef BASECAMP_USEDNS
 		#ifdef DNSServer_h
 		if (!configuration.get(ConfigurationKey::wifiConfigured).equalsIgnoreCase("true")) {
-			dnsServer.start(53, "*", wifi.getSoftAPIP());
+			dnsServer.start(53, "*", network.getSoftAPIP());
 			xTaskCreatePinnedToCore(&DnsHandling, "DNSTask", 4096, (void*) &dnsServer, 5, NULL,0);
 		}
 		#endif
@@ -323,7 +326,7 @@ void Basecamp::handle (void)
 bool Basecamp::shouldEnableConfigWebserver() const
 {
 	return (configurationUi_ == ConfigurationUI::always ||
-	   (configurationUi_ == ConfigurationUI::accessPoint && wifi.getOperationMode() == WifiControl::Mode::accessPoint));
+	   (configurationUi_ == ConfigurationUI::accessPoint && network.getOperationMode() == NetworkControl::Mode::accessPoint));
 }
 
 // This is a task that is called if MQTT client has lost connection. After 2 seconds it automatically trys to reconnect.
@@ -341,7 +344,7 @@ void Basecamp::connectToMqtt(TimerHandle_t xTimer)
   static int reconnect = 0;
   AsyncMqttClient *mqtt = (AsyncMqttClient *) pvTimerGetTimerID(xTimer);
 
-  if (WifiControl::isConnected()) {
+  if (NetworkControl::isConnected()) {
     Serial.println("Trying to connect ...");
     mqtt->connect();    // has no effect if already connected ( if (_connected) return;) 
     reconnect = 0;
@@ -443,7 +446,7 @@ void Basecamp::checkResetReason()
 String Basecamp::showSystemInfo() {
 	std::ostringstream info;
 	info << "MAC-Address: " << mac.c_str();
-	info << ", Hardware MAC: " << wifi.getHardwareMacAddress(":").c_str() << std::endl;
+	info << ", Hardware MAC: " << network.getHardwareMacAddress(":").c_str() << std::endl;
 
 	if (configuration.isKeySet(ConfigurationKey::accessPointSecret)) {
 			info << "*******************************************" << std::endl;

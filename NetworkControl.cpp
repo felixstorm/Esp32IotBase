@@ -4,23 +4,23 @@
    Licensed under GPLv3. See LICENSE for details.
    */
 
-#include "WifiControl.hpp"
-#ifdef BASECAMP_WIRED_NETWORK
+#include "NetworkControl.hpp"
+#ifdef BASECAMP_NETWORK_ETHERNET
 #include <ETH.h>
 #endif
 
 namespace {
 	// Minumum access point secret length to be generated (8 is min for ESP32)
 	const constexpr unsigned minApSecretLength = 8;
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	static bool eth_connected = false;
 #endif
 }
 
-void WifiControl::begin(String essid, String password, String configured,
+void NetworkControl::begin(String essid, String password, String configured,
 												String hostname, String apSecret)
 {
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	ESP_LOGI("Basecamp", "Connecting to Ethernet");
 	operationMode_ = Mode::client;
 	WiFi.onEvent(WiFiEvent);
@@ -47,6 +47,10 @@ void WifiControl::begin(String essid, String password, String configured,
 		ESP_LOGI("Basecamp", "Wifi is configured, connecting to '%s'", _wifiEssid.c_str());
 
 		WiFi.begin(_wifiEssid.c_str(), _wifiPassword.c_str());
+		// TBD klären
+		// https://github.com/me-no-dev/ESPAsyncWebServer/issues/437
+		// https://github.com/espressif/arduino-esp32/issues/3157
+		WiFi.setSleep(false);
 		WiFi.setHostname(hostname.c_str());
 		//WiFi.setAutoConnect ( true );
 		//WiFi.setAutoReconnect ( true );
@@ -69,51 +73,51 @@ void WifiControl::begin(String essid, String password, String configured,
 }
 
 
-bool WifiControl::isConnected()
+bool NetworkControl::isConnected()
 {
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	return eth_connected ;
 #else
 	return WiFi.isConnected() ;
 #endif
 }
 
-WifiControl::Mode WifiControl::getOperationMode() const
+NetworkControl::Mode NetworkControl::getOperationMode() const
 {
 	return operationMode_;
 }
 
-int WifiControl::status() {
+int NetworkControl::status() {
 	return WiFi.status();
 
 }
-IPAddress WifiControl::getIP() {
-#ifdef BASECAMP_WIRED_NETWORK
+IPAddress NetworkControl::getIP() {
+#ifdef BASECAMP_NETWORK_ETHERNET
 	return ETH.localIP() ;
 #else
 	return WiFi.localIP();
 #endif
 }
-IPAddress WifiControl::getSoftAPIP() {
+IPAddress NetworkControl::getSoftAPIP() {
 	return WiFi.softAPIP();
 }
 
-void WifiControl::setAPName(const String &name) {
+void NetworkControl::setAPName(const String &name) {
 	_wifiAPName = name;
 }
 
-String WifiControl::getAPName() {
+String NetworkControl::getAPName() {
 	return _wifiAPName;
 }
 
-void WifiControl::WiFiEvent(WiFiEvent_t event)
+void NetworkControl::WiFiEvent(WiFiEvent_t event)
 {
 	Preferences preferences;
 	preferences.begin("basecamp", false);
 	unsigned int __attribute__((unused)) bootCounter = preferences.getUInt("bootcounter", 0);
 	// In case somebody wants to know this..
 	ESP_LOGD("Basecamp", "WiFiEvent %d, Bootcounter is %d", event, bootCounter);
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	switch (event) {
     case SYSTEM_EVENT_ETH_START:
       ESP_LOGI("Basecamp", "ETH Started");
@@ -122,7 +126,7 @@ void WifiControl::WiFiEvent(WiFiEvent_t event)
       ESP_LOGI("Basecamp", "ETH Connected");
       break;
     case SYSTEM_EVENT_ETH_GOT_IP:
-	  ESP_LOGI("Basecamp", "ETH Got IPv4 %s (%d Mbps, full duplex: %d, MAC %s)", ETH.localIP(), ETH.linkSpeed(), ETH.fullDuplex(), ETH.macAddress());
+	  ESP_LOGI("Basecamp", "ETH Got IPv4 %s (%d Mbps, full duplex: %d, MAC %s)", ETH.localIP().toString().c_str(), ETH.linkSpeed(), ETH.fullDuplex(), ETH.macAddress().c_str());
       eth_connected = true;
       break;
     case SYSTEM_EVENT_ETH_DISCONNECTED:
@@ -174,9 +178,9 @@ namespace {
 
 // TODO: This will return the default mac, not a manually set one
 // See https://github.com/espressif/esp-idf/blob/master/components/esp32/include/esp_system.h
-String WifiControl::getHardwareMacAddress(const String& delimiter)
+String NetworkControl::getHardwareMacAddress(const String& delimiter)
 {
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	return ETH.macAddress() ;
 #else
 	uint8_t rawMac[6];
@@ -185,9 +189,9 @@ String WifiControl::getHardwareMacAddress(const String& delimiter)
 #endif
 }
 
-String WifiControl::getSoftwareMacAddress(const String& delimiter)
+String NetworkControl::getSoftwareMacAddress(const String& delimiter)
 {
-#ifdef BASECAMP_WIRED_NETWORK
+#ifdef BASECAMP_NETWORK_ETHERNET
 	return ETH.macAddress() ;
 #else
 	uint8_t rawMac[6];
@@ -197,12 +201,19 @@ String WifiControl::getSoftwareMacAddress(const String& delimiter)
 	
 }
 
-unsigned WifiControl::getMinimumSecretLength() const
+String NetworkControl::getBaseMacAddress(const String& delimiter)
+{
+	uint8_t rawMac[6];
+	esp_read_mac(rawMac, (esp_mac_type_t)0);
+	return format6Bytes(rawMac, delimiter);
+}
+
+unsigned NetworkControl::getMinimumSecretLength() const
 {
 	return minApSecretLength;
 }
 
-String WifiControl::generateRandomSecret(unsigned length) const
+String NetworkControl::generateRandomSecret(unsigned length) const
 {
 	// There is no "O" (Oh) to reduce confusion
 	const String validChars{"abcdefghjkmnopqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789.-,:$/"};

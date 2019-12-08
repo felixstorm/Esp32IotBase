@@ -4,8 +4,8 @@
    Licensed under GPLv3. See LICENSE for details.
    */
 
-#ifndef WifiControl_h
-#define WifiControl_h
+#ifndef NetworkControl_h
+#define NetworkControl_h
 
 #include <Esp32Logging.hpp>
 
@@ -15,7 +15,7 @@
 #include <WiFiClient.h>
 #include <Preferences.h>
 
-class WifiControl {
+class NetworkControl {
 	public:
 		enum class Mode {
 			unconfigured,
@@ -23,7 +23,7 @@ class WifiControl {
 			client,
 		};
 
-		WifiControl(){};
+		NetworkControl(){};
 		bool connect();
 		bool disconnect();
 		static bool isConnected() ;
@@ -49,6 +49,7 @@ class WifiControl {
 		*/
 		String getHardwareMacAddress(const String& delimiter = {});
 		String getSoftwareMacAddress(const String& delimiter = {});
+		String getBaseMacAddress(const String& delimiter = {});
 	private:
 		String _wifiEssid;
 		String _wifiPassword;

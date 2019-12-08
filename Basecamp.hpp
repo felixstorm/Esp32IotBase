@@ -11,8 +11,8 @@
 #include <Preferences.h>
 #include <rom/rtc.h>
 
-#ifndef BASECAMP_NOWIFI
-#include "WifiControl.hpp"
+#ifndef BASECAMP_NO_NETWORK
+#include "NetworkControl.hpp"
 #endif
 
 #ifndef BASECAMP_NOWEB
@@ -77,9 +77,9 @@ class Basecamp
 		String getSetupModeWifiSecret();
 		String hostname;
 
-#ifndef BASECAMP_NOWIFI
+#ifndef BASECAMP_NO_NETWORK
 		String mac;
-		WifiControl wifi;
+		NetworkControl network;
 #endif
 
 #ifndef BASECAMP_NOMQTT
