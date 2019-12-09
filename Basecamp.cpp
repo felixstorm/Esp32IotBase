@@ -6,6 +6,7 @@
 
 #include <iomanip>
 #include "Basecamp.hpp"
+#include "lwip/apps/sntp.h"
 
 namespace {
 	const constexpr char* kLoggingTag = "Basecamp";
@@ -302,7 +303,16 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 			ESP.restart();
 		});
 	}
-	#endif
+#endif
+
+#ifndef BASECAMP_NO_SNTP
+	sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+    setenv("TZ", "CET-1CEST,M3.5.0/2:00,M10.5.0/3:00", 1);
+    tzset();
+#endif
+
 	ESP_LOGW(kLoggingTag, "%s", showSystemInfo().c_str());
 
 	// TODO: only return true if everything setup up correctly
