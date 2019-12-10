@@ -16,11 +16,10 @@ namespace {
 	const constexpr unsigned defaultApSecretLength = 8;
 }
 
-Basecamp::Basecamp(SetupModeWifiEncryption setupModeWifiEncryption, ConfigurationUI configurationUi)
-	: MqttGuardInterface(mqtt)
-	, configuration(String{"/basecamp.json"})
-	, setupModeWifiEncryption_(setupModeWifiEncryption)
-	, configurationUi_(configurationUi)
+Basecamp::Basecamp(SetupModeWifiEncryption setupModeWifiEncryption, ConfigurationUI configurationUi) : 
+	configuration(String{"/basecamp.json"}), 
+	setupModeWifiEncryption_(setupModeWifiEncryption), 
+	configurationUi_(configurationUi)
 {
 }
 
@@ -144,33 +143,9 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 #ifndef BASECAMP_NOMQTT
 	// Check if MQTT has been disabled by the user
 	if (!configuration.get(ConfigurationKey::mqttActive).equalsIgnoreCase("false")) {
-		// Setting up variables for the MQTT client. This is necessary due to
-		// the nature of the library. It won't work properly with Arduino Strings.
-		const auto &mqtthost = configuration.get(ConfigurationKey::mqttHost);
-		const auto &mqttuser = configuration.get(ConfigurationKey::mqttUser);
-		const auto &mqttpass = configuration.get(ConfigurationKey::mqttPass);
-		// INFO: that library just copies the pointer to the hostname. As long as nobody
-		// modifies the config, this may work.
-		mqtt.setClientId(hostname.c_str());
-		auto mqttport = configuration.get(ConfigurationKey::mqttPort).toInt();
-		if (mqttport == 0) mqttport = 1883;
-		// INFO: that library just copies the pointer to the hostname. As long as nobody
-		// modifies the config, this may work.
-		// Define the hostname and port of the MQTT broker.
-		mqtt.setServer(mqtthost.c_str(), mqttport);
-		// If MQTT credentials are stored, set them.
-		if (mqttuser.length() != 0) {
-			mqtt.setCredentials(mqttuser.c_str(), mqttpass.c_str());
-		};
-		// Create a timer and register a "onDisconnect" callback function that manages the (re)connection of the MQTT client
-		// It will be called by the Asyc-MQTT-Client KeepAlive function if a connection loss is detected
-		// The timer is then started and will start a function to reconnect MQTT after 2 seconds 
-		mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)&mqtt, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-		mqtt.onDisconnect(onMqttDisconnect);
-		// Do not connect MQTT directly but only start the timer to give the main setup() time to register all MQTT callbacks before 
-		// Especially a "onConnect" callback should be in place to get informed about a successful MQTT connection
-		// setup() can optionally call mqtt.connect() by itself if MQTT is needed before timer elapses
-		xTimerStart(mqttReconnectTimer, 0);
+		const auto &mqttUri = configuration.get(ConfigurationKey::mqttHost);
+		const auto &mqttHaDiscoveryPrefix = configuration.get(ConfigurationKey::haDiscoveryPrefix);
+		mqtt.Begin(mqttUri, hostname, mqttHaDiscoveryPrefix);
 	};
 #endif
 
@@ -263,19 +238,13 @@ bool Basecamp::begin(String fixedWiFiApEncryptionPassword)
 
 		// Add input fields for MQTT configurations if it hasn't been disabled
 		if (!configuration.get(ConfigurationKey::mqttActive).equalsIgnoreCase("false")) {
-			web.addInterfaceElement("MQTTHost", "input", "MQTT Host:","#configform" , "MQTTHost");
-			web.addInterfaceElement("MQTTPort", "input", "MQTT Port:","#configform" , "MQTTPort");
-			web.setInterfaceElementAttribute("MQTTPort", "type", "number");
-			web.setInterfaceElementAttribute("MQTTPort", "min", "0");
-			web.setInterfaceElementAttribute("MQTTPort", "max", "65535");
-			web.addInterfaceElement("MQTTUser", "input", "MQTT Username:","#configform" , "MQTTUser");
-			web.addInterfaceElement("MQTTPass", "input", "MQTT Password:","#configform" , "MQTTPass");
-			web.setInterfaceElementAttribute("MQTTPass", "type", "password");
-
-			web.addInterfaceElement("SyslogServer", "input", "Syslog Server (space/empty to disable):","#configform" , "SyslogServer");
+			web.addInterfaceElement("MQTTHost", "input", "MQTT URI:","#configform" , "MQTTHost");
 			web.addInterfaceElement("MQTTTopicPrefix", "input", "MQTT Topic Prefix (suggested 'esp-basecamp'):","#configform" , "MQTTTopicPrefix");
 			web.addInterfaceElement("HaDiscoveryPrefix", "input", "Home Assistant MQTT Discovery Topic Prefix (suggested 'homeassistant', space/empty to disable):","#configform" , "HaDiscoveryPrefix");
 		}
+
+		web.addInterfaceElement("SyslogServer", "input", "Syslog Server (space/empty to disable):","#configform" , "SyslogServer");
+
 		// Add a save button that calls the JavaScript function collectConfiguration() on click
 		web.addInterfaceElement("saveform", "button", "Save","#configform");
 		web.setInterfaceElementAttribute("saveform", "type", "submit");
@@ -330,49 +299,12 @@ void Basecamp::handle (void)
 	#endif
 }
 
-
-#ifndef BASECAMP_NOMQTT
-
 bool Basecamp::shouldEnableConfigWebserver() const
 {
 	return (configurationUi_ == ConfigurationUI::always ||
 	   (configurationUi_ == ConfigurationUI::accessPoint && network.getOperationMode() == NetworkControl::Mode::accessPoint));
 }
 
-// This is a task that is called if MQTT client has lost connection. After 2 seconds it automatically trys to reconnect.
-
-TimerHandle_t Basecamp::mqttReconnectTimer;
-  
-void Basecamp::onMqttDisconnect(AsyncMqttClientDisconnectReason reason) 
-{
-  ESP_LOGW(kLoggingTag, "MQTT Disconnected. Reason: %i", (int)reason);
-  xTimerStart(mqttReconnectTimer, 0);
-}
-
-void Basecamp::connectToMqtt(TimerHandle_t xTimer) 
-{
-  static int reconnect = 0;
-  AsyncMqttClient *mqtt = (AsyncMqttClient *) pvTimerGetTimerID(xTimer);
-
-  if (NetworkControl::isConnected()) {
-    ESP_LOGI(kLoggingTag, "Trying to connect ...");
-    mqtt->connect();    // has no effect if already connected ( if (_connected) return;) 
-    reconnect = 0;
-  }
-  else {
-    ESP_LOGW(kLoggingTag, "Waiting for network ...");
-    reconnect++;
-    if (reconnect >= 3)
-    {
-      ESP_LOGW(kLoggingTag, "Initiating WiFi reconnect...");
-      reconnect = 0;
-      WiFi.reconnect();
-    }
-    xTimerStart(xTimer, 0);
-  }
-}
-
-#endif
 
 #ifdef BASECAMP_USEDNS
 #ifdef DNSServer_h

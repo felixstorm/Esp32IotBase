@@ -24,9 +24,7 @@
 #endif
 
 #ifndef BASECAMP_NOMQTT
-#include <AsyncMqttClient.h>
-#include "mqttGuardInterface.hpp"
-#include "freertos/timers.h"
+#include "EspIdfMqttClient.hpp"
 #endif
 
 #ifndef BASECAMP_NOOTA
@@ -34,9 +32,6 @@
 #endif
 
 class Basecamp
-#ifndef BASECAMP_NOMQTT
- : public MqttGuardInterface
-#endif
 {
 	public:
 		// How to handle encryption in setup mode (AP mode)
@@ -83,17 +78,14 @@ class Basecamp
 #endif
 
 #ifndef BASECAMP_NOMQTT
-    AsyncMqttClient mqtt;
-    static TimerHandle_t mqttReconnectTimer;
-    static void onMqttDisconnect(AsyncMqttClientDisconnectReason reason); 
-    static void connectToMqtt(TimerHandle_t xTimer); 
+    	EspIdfMqttClient mqtt;
 #endif
 
 #ifndef BASECAMP_NOWEB
 
 #ifdef BASECAMP_USEDNS
 #ifdef DNSServer_h
-    DNSServer dnsServer;
+		DNSServer dnsServer;
 		static void DnsHandling(void *);
 #endif
 #endif
