@@ -1,7 +1,7 @@
 # Esp32IotBase
 
-Esp32IotBase - ESP32 library to simplify the basics of IoT projects
-by Felix Storm (http://github.com/felixstorm)
+Esp32IotBase - ESP32 library to simplify the basics of IoT projects  
+by Felix Storm (http://github.com/felixstorm)  
 Heavily based on Basecamp (https://github.com/ct-Open-Source/Basecamp) by Merlin Schumacher (mls@ct.de)
 
 Modifications include:
