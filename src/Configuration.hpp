@@ -1,6 +1,7 @@
 /*
-   Basecamp - ESP32 library to simplify the basics of IoT projects
-   Written by Merlin Schumacher (mls@ct.de) for c't magazin für computer technik (https://www.ct.de)
+   Esp32IotBase - ESP32 library to simplify the basics of IoT projects
+   by Felix Storm (http://github.com/felixstorm)
+   Heavily based on Basecamp (https://github.com/ct-Open-Source/Basecamp) by Merlin Schumacher (mls@ct.de)
    Licensed under GPLv3. See LICENSE for details.
    */
 
@@ -8,154 +9,54 @@
 #define Configuration_h
 
 #include <Esp32Logging.hpp>
+#include <nvs.h>
+#include <nvs_flash.h>
+#include "enum.h"
 
-#include <sstream>
-#include <list>
-#include <map>
-#include <ArduinoJson.h>
-#include <SPIFFS.h>
-
-// TODO: Extend with all known keys
-enum class ConfigurationKey {
-	deviceName,
-	accessPointSecret,
-	wifiConfigured,
-	wifiEssid,
-	wifiPassword,
-	mqttActive,
-	mqttHost,
-	mqttPort,
-	mqttUser,
-	mqttPass,
-	otaActive,
-	otaPass,
-	syslogServer,
-	mqttTopicPrefix,
-	haDiscoveryPrefix,
-};
-
-// TODO: Extend with all known keys
-static const String __attribute__((unused)) getKeyName (ConfigurationKey key)
-{
-	// This automatically will break the compiler if a known key has been forgotten
-	// (if the warnings are turned on exactly...)
-	switch (key)
-	{
-		case ConfigurationKey::deviceName:
-			return "DeviceName";
-
-		case ConfigurationKey::accessPointSecret:
-			return "APSecret";
-
-		case ConfigurationKey::wifiConfigured:
-			return "WifiConfigured";
-
-		case ConfigurationKey::wifiEssid:
-			return "WifiEssid";
-
-		case ConfigurationKey::wifiPassword:
-			return "WifiPassword";
-
-		case ConfigurationKey::mqttActive:
-			return "MQTTActive";
-
-		case ConfigurationKey::mqttHost:
-			return "MQTTHost";
-
-		case ConfigurationKey::mqttPort:
-			return "MQTTPort";
-
-		case ConfigurationKey::mqttUser:
-			return "MQTTUser";
-
-		case ConfigurationKey::mqttPass:
-			return "MQTTPass";
-
-		case ConfigurationKey::otaActive:
-			return "OTAActive";
-
-		case ConfigurationKey::otaPass:
-			return "OTAPass";
-
-		case ConfigurationKey::syslogServer:
-			return "SyslogServer";
-
-		case ConfigurationKey::mqttTopicPrefix:
-			return "MQTTTopicPrefix";
-
-		case ConfigurationKey::haDiscoveryPrefix:
-			return "HaDiscoveryPrefix";
-	}
-	return "";
-}
+// 15 chars max due to NVS limit
+BETTER_ENUM(ConfigurationKey, int, 
+    QuickBootCount,
+    DeviceName,
+    ApSecret,
+    WifiSsid,
+    WifiPassword,
+    SntpServer,
+    SntpTz,
+    MqttHost,
+    MqttUser,
+    MqttPassword,
+    MqttTopicPrefix,
+    MqttHaDiscPref,
+    OtaActive,
+    OtaPassword,
+    SyslogServer
+)
 
 class Configuration {
-	public:
-		// Default constructor: Memory-only configuration (NO EEPROM read/writes
-		Configuration();
-		// Constructor with filename: Can be read from and written to EEPROM
-		explicit Configuration(String filename);
-		~Configuration() = default;
-		
-		// Switched configuration to memory-only and empties filename
-		void setMemOnly();
-		// Sets new filename and removes memory-only tag
-		void setFileName(const String& filename);
-		// Returns memory-only state of configuration
-		bool isMemOnly() {return _memOnlyConfig;}
+    public:
+        Configuration();
+        ~Configuration() = default;
 
-		const String& getKey(ConfigurationKey configKey) const;
+        bool Begin();
+        bool Save();
+        bool Reset();
 
-		// Both functions return true on successful load or save. Return false on any failure. Also return false for memory-only configurations.
-		bool load();
-		bool save();
-		
-		void dump();
+        void Set(const ConfigurationKey &key, const String &value);
+        void Set(const String &key, const String &value);
+        void Set(const char* key, const String &value);
+        void SetInt(const ConfigurationKey &key, const int value);
+        void SetInt(const String &key, const int value);
+        void SetInt(const char* key, const int value);
 
-		// Returns true if the key 'key' exists
-		bool keyExists(const String& key) const;
+        const String Get(const ConfigurationKey &key, const String &defaultValue = {}) const;
+        const String Get(const String &key, const String &defaultValue = {}) const;
+        const String Get(const char* key, const String &defaultValue = {}) const;
+        int GetInt(const ConfigurationKey &key, const int defaultValue = 0) const;
+        int GetInt(const String &key, const int defaultValue = 0) const;
+        int GetInt(const char* key, const int defaultValue = 0) const;
 
-		// Returns true if the key 'key' exists
-		bool keyExists(ConfigurationKey key) const;
-
-		// Returns true if the key 'key' exists and is not empty
-		bool isKeySet(ConfigurationKey key) const;
-
-		// Reset the whole configuration
-		void reset();
-
-		// Reset everything except the AP secret
-		void resetExcept(const std::list<ConfigurationKey> &keysToPreserve);
-
-		// FIXME: Get rid of every direct access ("name") set() and get()
-		// to minimize the risk of unknown-key usage. Move to private.
-		void set(String key, String value);
-		// FIXME: use this instead
-		void set(ConfigurationKey key, String value);
-
-		// FIXME: Get rid of every direct access ("name") set() and get()
-		// to minimize the risk of unknown-key usage. Move to private.
-		const String& get(String key) const;
-		// FIXME: use this instead
-		const String& get(ConfigurationKey key) const;
-		char* getCString(String key);
-		struct cmp_str
-		{
-			bool operator()(const String &a, const String &b) const
-			{
-				return strcmp(a.c_str(), b.c_str()) < 0;
-			}
-		};
-
-		std::map<String, String, cmp_str> configuration;
-
-	private:
-		static void CheckConfigStatus(void *);
-		bool _configurationTainted = false;
-		String noResult_ = {};
-		// Set to true if configuration is memory-only
-		bool _memOnlyConfig;
-		String _jsonFile;
+    private:
+        nvs_handle nvsHandle_;
 };
 
 #endif

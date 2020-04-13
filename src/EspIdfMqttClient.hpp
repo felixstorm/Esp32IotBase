@@ -9,7 +9,8 @@ typedef std::function<void()> OnConnectUserCallback;
 
 class EspIdfMqttClient {
 	public:
-        EspIdfMqttClient& Begin(const String& mqttUri, const String& deviceName = {}, const String& haDiscoveryTopicPrefix = {}, const String& baseTopic = {});
+        EspIdfMqttClient& BeginWithHost(const String& mqttHost, const String& mqttUser, const String& mqttPassword, const String& deviceName = {}, const String& haDiscoveryTopicPrefix = {}, const String& baseTopic = {});
+        EspIdfMqttClient& BeginWithUri(const String& mqttUri, const String& deviceName = {}, const String& haDiscoveryTopicPrefix = {}, const String& baseTopic = {});
         EspIdfMqttClient& OnConnect(OnConnectUserCallback callback);
         void Publish(const String& message, bool retain = false, const String& topicSuffix = {}, const String& topic = {});
         void Publish(JsonDocument message, bool retain = false, const String& topicSuffix = {}, const String& topic = {});

@@ -1,9 +1,30 @@
 #include "EspIdfMqttClient.hpp"
 
 
-EspIdfMqttClient& EspIdfMqttClient::Begin(const String& mqttUri, const String& deviceName, const String& haDiscoveryTopicPrefix, const String& baseTopic)
+namespace {
+    const constexpr char* kLoggingTag = "IotBaseMqtt";
+}
+
+EspIdfMqttClient& EspIdfMqttClient::BeginWithHost(const String& mqttHost, const String& mqttUser, const String& mqttPassword, const String& deviceName, const String& haDiscoveryTopicPrefix, const String& baseTopic)
 {
-    ESP_LOGD("MQTT", "mqttUri: %s, deviceName: %s, haDiscoveryTopicPrefix: %s, baseTopic: %s", 
+    ESP_LOGD(kLoggingTag, "mqttHost: %s, mqttUser: %s, mqttPassword: %s, deviceName: %s, haDiscoveryTopicPrefix: %s, baseTopic: %s", 
+             mqttHost.c_str(), mqttUser.c_str(), mqttPassword.c_str(), deviceName.c_str(), haDiscoveryTopicPrefix.c_str(), baseTopic.c_str());
+
+    String mqttUri = "mqtt://";
+    if (!mqttUser.isEmpty()) {
+        mqttUri += mqttUser;
+        if (!mqttPassword.isEmpty())
+            mqttUri += ":" + mqttPassword;
+        mqttUri += "@";
+    }
+    mqttUri += mqttHost;
+
+    return BeginWithUri(mqttUri, deviceName, haDiscoveryTopicPrefix, baseTopic);
+}
+
+EspIdfMqttClient& EspIdfMqttClient::BeginWithUri(const String& mqttUri, const String& deviceName, const String& haDiscoveryTopicPrefix, const String& baseTopic)
+{
+    ESP_LOGD(kLoggingTag, "mqttUri: %s, deviceName: %s, haDiscoveryTopicPrefix: %s, baseTopic: %s", 
              mqttUri.c_str(), deviceName.c_str(), haDiscoveryTopicPrefix.c_str(), baseTopic.c_str());
 
     if (!mqttUri.isEmpty()) {
@@ -14,10 +35,10 @@ EspIdfMqttClient& EspIdfMqttClient::Begin(const String& mqttUri, const String& d
         this->macAddress = macString;
 
         this->deviceName = !deviceName.isEmpty() ? deviceName : String("esp32-" + this->macAddress);
-        this->baseTopic = !baseTopic.isEmpty() ? baseTopic : String("esp-basecamp/" + this->deviceName);
+        this->baseTopic = !baseTopic.isEmpty() ? baseTopic : String("esp32-iotbase/" + this->deviceName);
         this->haDiscoveryTopicPrefix = haDiscoveryTopicPrefix;
         String clientId = this->deviceName + (this->deviceName.indexOf(this->macAddress) < 0 ? ("-" + this->macAddress) : "");
-        ESP_LOGD("MQTT", "macAddress: %s, deviceName: %s, baseTopic: %s, clientId: %s", 
+        ESP_LOGD(kLoggingTag, "macAddress: %s, deviceName: %s, baseTopic: %s, clientId: %s", 
                  this->macAddress.c_str(), this->deviceName.c_str(), this->baseTopic.c_str(), clientId.c_str());
 
         esp_mqtt_client_config_t mqtt_cfg = {};
@@ -41,7 +62,7 @@ EspIdfMqttClient& EspIdfMqttClient::OnConnect(OnConnectUserCallback callback) {
 
 esp_err_t EspIdfMqttClient::StaticEventHandler(esp_mqtt_event_handle_t event)
 {
-    ESP_LOGD("MQTT", "Event received: %i", (int)event->event_id);
+    ESP_LOGD(kLoggingTag, "Event received: %i", (int)event->event_id);
 
     return reinterpret_cast<EspIdfMqttClient*>(event->user_context)->EventHandler(event);
 }
@@ -50,7 +71,7 @@ esp_err_t EspIdfMqttClient::EventHandler(esp_mqtt_event_handle_t event)
 {
     if (event->event_id == MQTT_EVENT_CONNECTED)
     {
-        ESP_LOGI("MQTT", "Connected");
+        ESP_LOGI(kLoggingTag, "Connected");
         for (auto callback : _onConnectUserCallbacks)
             callback();
     }
@@ -64,18 +85,18 @@ void EspIdfMqttClient::Publish(const String& message, bool retain /* = false */,
     if (!topicSuffix.isEmpty())
         topicInt += "/" + topicSuffix;
 
-    ESP_LOGI("MQTT", "topic: %s, retain: %u, message: %s", topicInt.c_str(), retain, message.c_str());
+    ESP_LOGI(kLoggingTag, "topic: %s, retain: %u, message: %s", topicInt.c_str(), retain, message.c_str());
 
     int publishResult = -1;
     if (mqttClient)
         publishResult = esp_mqtt_client_publish(mqttClient, topicInt.c_str(),  message.c_str(), 0, 0, retain);
 
-    ESP_LOGI("MQTT", "publish result: %i", publishResult);
+    ESP_LOGI(kLoggingTag, "publish result: %i", publishResult);
 }
 
 void EspIdfMqttClient::Publish(JsonDocument message, bool retain /* = false */, const String& topicSuffix /* = {} */, const String& topic /* = {} */)
 {
-    ESP_LOGD("MQTT", "Entered function");
+    ESP_LOGD(kLoggingTag, "Entered function");
 
     String stringMessage;
     serializeJson(message, stringMessage);
@@ -89,12 +110,12 @@ void EspIdfMqttClient::Publish(JsonDocument message, bool retain /* = false */, 
 }
 
 void EspIdfMqttClient::PublishHaDiscoveryInformation(bool isBinary, const String &unitOfMeasurement, const String &deviceClass, int expireAfter, const String &valueTemplate,
-                                         bool forceUpdate, bool setJsonAttributesTopic, const String &entitySuffix, const String &stateTopicSuffix)
+                                                     bool forceUpdate, bool setJsonAttributesTopic, const String &entitySuffix, const String &stateTopicSuffix)
 {
     if (!haDiscoveryTopicPrefix.isEmpty())
     {
 
-        ESP_LOGI("MQTT", "stateTopicSuffix: %s, entityIdSuffix: %s", stateTopicSuffix.c_str(), entitySuffix.c_str());
+        ESP_LOGI(kLoggingTag, "stateTopicSuffix: %s, entityIdSuffix: %s", stateTopicSuffix.c_str(), entitySuffix.c_str());
 
         String entityIdSuffixInt;
         if (!stateTopicSuffix.isEmpty())
@@ -111,7 +132,7 @@ void EspIdfMqttClient::PublishHaDiscoveryInformation(bool isBinary, const String
             entityStateTopic += "/" + stateTopicSuffix;
         String haEntityType = isBinary ? "binary_sensor" : "sensor";
 
-        ESP_LOGD("MQTT", "haDiscoveryTopicPrefix: %s, uniqueDeviceId: %s, deviceName: %s, uniqueEntityId: %s, entityName: %s, entityStateTopic: %s",
+        ESP_LOGD(kLoggingTag, "haDiscoveryTopicPrefix: %s, uniqueDeviceId: %s, deviceName: %s, uniqueEntityId: %s, entityName: %s, entityStateTopic: %s",
                  haDiscoveryTopicPrefix.c_str(), uniqueDeviceId.c_str(), deviceName.c_str(), uniqueEntityId.c_str(), entityName.c_str(), entityStateTopic.c_str());
 
         DynamicJsonDocument haDiscovery(2048);

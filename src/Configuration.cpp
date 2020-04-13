@@ -1,204 +1,157 @@
 /*
-   Basecamp - ESP32 library to simplify the basics of IoT projects
-   Written by Merlin Schumacher (mls@ct.de) for c't magazin für computer technik (https://www.ct.de)
+   Esp32IotBase - ESP32 library to simplify the basics of IoT projects
+   by Felix Storm (http://github.com/felixstorm)
+   Heavily based on Basecamp (https://github.com/ct-Open-Source/Basecamp) by Merlin Schumacher (mls@ct.de)
    Licensed under GPLv3. See LICENSE for details.
    */
 #include "Configuration.hpp"
 
 namespace {
-	const constexpr char* kLoggingTag = "BasecampConfig";
+    const constexpr char* kLoggingTag = "IotBaseConfig";
+    const constexpr char* kNvsNamespaceName = "Esp32IotBase";
 }
 
 Configuration::Configuration()
-	: _memOnlyConfig( true ),
-	_jsonFile()
 {
 }
 
-Configuration::Configuration(String filename)
-	: _memOnlyConfig( false ),
-	_jsonFile(std::move(filename))
+bool Configuration::Begin() {
+
+    ESP_LOGD(kLoggingTag, "Initializing NVS flash");
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(kLoggingTag, "Need to erase NVS flash");
+        if((err = nvs_flash_erase())) {
+            ESP_LOGE(kLoggingTag, "Error erasing erasing NVS flash: %#x (%s)", err, esp_err_to_name(err));
+            return false;
+        }
+        err = nvs_flash_init();
+    }
+    if(err) {
+        ESP_LOGE(kLoggingTag, "Error initializing NVS flash: %#x (%s)", err, esp_err_to_name(err));
+        return false;
+    }
+
+    ESP_LOGD(kLoggingTag, "Opening NVS flash for namespace '%s'", kNvsNamespaceName);
+    err = nvs_open(kNvsNamespaceName, NVS_READWRITE, &nvsHandle_);
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error initializing NVS flash: %#x (%s)", err, esp_err_to_name(err));
+        return false;
+    }
+
+    return true;
+}
+
+bool Configuration::Save() {
+    ESP_LOGD(kLoggingTag, "Committing NVS flash");
+    esp_err_t err = nvs_commit(nvsHandle_);
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error committing NVS flash: %#x (%s)", err, esp_err_to_name(err));
+        return false;
+    }
+
+    return true;
+}
+
+bool Configuration::Reset()
 {
+    ESP_LOGD(kLoggingTag, "Erasing NVS flash for namespace '%s'", kNvsNamespaceName);
+    esp_err_t err = nvs_erase_all(nvsHandle_);
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error erasing NVS flash: %#x (%s)", err, esp_err_to_name(err));
+        return false;
+    }
+
+    return Save();
 }
 
-void Configuration::setMemOnly() {
-	_memOnlyConfig = true;
-	_jsonFile = "";
+void Configuration::Set(const ConfigurationKey &key, const String &value) {
+    Set(key._to_string(), value);
 }
 
-void Configuration::setFileName(const String& filename) {
-	_memOnlyConfig = false;
-	_jsonFile = filename;
+void Configuration::Set(const String &key, const String &value) {
+    Set(key.c_str(), value);
 }
 
-bool Configuration::load() {
-	ESP_LOGD(kLoggingTag, "Loading config file");
-	
-	if (_memOnlyConfig) {
-		ESP_LOGD(kLoggingTag, "Memory-only configuration: Nothing loaded!");
-		return false;
-	}
-	
-	ESP_LOGD(kLoggingTag, "JSON File: %s", _jsonFile.c_str());
-	if (!SPIFFS.begin(true)) {
-		ESP_LOGE(kLoggingTag, "Could not access SPIFFS.");
-		return false;
-	}
+void Configuration::Set(const char* key, const String &value) {
+    ESP_LOGD(kLoggingTag, "Setting '%s' to '%s' (was '%s')", key, value.c_str(), Get(key).c_str());
 
-	File configFile = SPIFFS.open(_jsonFile, "r");
-
-	if (!configFile || configFile.isDirectory()) {
-		ESP_LOGE(kLoggingTag, "Failed to open config file");
-		return false;
-	}
-
-	DynamicJsonDocument _jsonDoc(2048);
-	auto error = deserializeJson(_jsonDoc, configFile);
-	JsonObject _jsonData = _jsonDoc.as<JsonObject>();
-
-	if (error) {
-		ESP_LOGE(kLoggingTag, "Failed to parse config file.");
-		return false;
-	}
-
-	for (const auto& configItem: _jsonData) {
-		set(String(configItem.key().c_str()), String(configItem.value().as<char*>()));
-	}
-
-	configFile.close();
-	return true;
+    esp_err_t err = nvs_set_str(nvsHandle_, key, value.c_str());
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error writing string '%s' to NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    }
 }
 
-bool Configuration::save() {
-	ESP_LOGD(kLoggingTag, "Saving config file");
-	
-	if (_memOnlyConfig) {
-		ESP_LOGD(kLoggingTag, "Memory-only configuration: Nothing saved!");
-		return false;
-	}
-
-	File configFile = SPIFFS.open(_jsonFile, "w");
-	if (!configFile) {
-		ESP_LOGE(kLoggingTag, "Failed to open config file for writing");
-		return false;
-	}
-
-	if (configuration.empty())
-	{
-		ESP_LOGI(kLoggingTag, "Configuration empty");
-	}
-
-	DynamicJsonDocument _jsonDoc(2048);
-	
-	for (const auto& x : configuration)
-	{
-		_jsonDoc[String(x.first)] = (String(x.second));
-	}
-
-	serializeJson(_jsonDoc, configFile);
-#ifdef DEBUG
-	serializeJsonPretty(_jsonDoc, Serial);
-#endif
-	configFile.close();
-	_configurationTainted = false;
-	return true;
+void Configuration::SetInt(const ConfigurationKey &key, int value) {
+    SetInt(key._to_string(), value);
 }
 
-void Configuration::set(String key, String value) {
-	ESP_LOGD(kLoggingTag, "Setting %s to %s (was %s)", key.c_str(), value.c_str(), get(key).c_str());
-
-	if (get(key) != value) {
-		_configurationTainted = true;
-		configuration[key] = value;
-	} else {
-		ESP_LOGD(kLoggingTag, "Cowardly refusing to overwrite existing key with the same value");
-	}
+void Configuration::SetInt(const String &key, int value) {
+    SetInt(key.c_str(), value);
 }
 
-void Configuration::set(ConfigurationKey key, String value)
+void Configuration::SetInt(const char* key, int value) {
+    ESP_LOGD(kLoggingTag, "Setting '%s' to %d (was %d)", key, value, GetInt(key));
+
+    esp_err_t err = nvs_set_i32(nvsHandle_, key, value);
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error writing int '%s' to NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    }
+}
+
+const String Configuration::Get(const ConfigurationKey &key, const String &defaultValue) const
 {
-	set(getKeyName(key), std::move(value));
+    return Get(key._to_string());
 }
 
-const String &Configuration::get(String key) const
+const String Configuration::Get(const String &key, const String &defaultValue) const
 {
-	auto found = configuration.find(key);
-	if (found != configuration.end()) {
-		ESP_LOGD(kLoggingTag, "Config value for %s: %s", key.c_str(), found->second.c_str());
-		return found->second;
-	}
-
-	// Default: if not set, we just return an empty String. TODO: Throw?
-	return noResult_;
+    return Get(key.c_str());
 }
 
-const String &Configuration::get(ConfigurationKey key) const
+const String Configuration::Get(const char* key, const String &defaultValue) const
 {
-	return get(getKeyName(key));
+    size_t required_size;
+    esp_err_t err = nvs_get_str(nvsHandle_, key, NULL, &required_size);
+    if (err) {
+        if (err != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(kLoggingTag, "Error determining length of string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+        ESP_LOGD(kLoggingTag, "Tried to read string '%s' from NVS flash: not found", key);
+        return defaultValue;
+    }
+
+    char* resultBuffer = (char*) malloc(required_size);
+    if ((err = nvs_get_str(nvsHandle_, key, resultBuffer, &required_size))) {
+        ESP_LOGE(kLoggingTag, "Error reading string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    }
+    ESP_LOGD(kLoggingTag, "Read string '%s' from NVS flash: '%s'", key, resultBuffer);
+
+    String result(resultBuffer);
+    free(resultBuffer);
+
+    return result;
 }
 
-// return a char* instead of a Arduino String to maintain backwards compatibility
-// with printed examples
-[[deprecated("getCString() is deprecated. Use get() instead")]]
-char* Configuration::getCString(String key)
+int Configuration::GetInt(const ConfigurationKey &key, int defaultValue) const
 {
-	char *newCString = (char*) malloc(configuration[key].length()+1);
-	strcpy(newCString,get(key).c_str());
-	return newCString;
+    return GetInt(key._to_string(), defaultValue);
 }
 
-bool Configuration::keyExists(const String& key) const
+int Configuration::GetInt(const String &key, int defaultValue) const
 {
-	return (configuration.find(key) != configuration.end());
+    return GetInt(key.c_str(), defaultValue);
 }
 
-bool Configuration::keyExists(ConfigurationKey key) const
+int Configuration::GetInt(const char* key, int defaultValue) const
 {
-	return (configuration.find(getKeyName(key)) != configuration.end());
-}
+    int result;
+    esp_err_t err = nvs_get_i32(nvsHandle_, key, &result);
+    if (err) {
+        if (err != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(kLoggingTag, "Error reading int '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+        return defaultValue;
+    }
+    ESP_LOGD(kLoggingTag, "Read int '%s' from NVS flash: %d", key, result);
 
-bool Configuration::isKeySet(ConfigurationKey key) const
-{
-	auto found = configuration.find(getKeyName(key));
-	if (found == configuration.end())
-	{
-		return false;
-	}
-
-	return (found->second.length() > 0);
-}
-
-void Configuration::reset()
-{
-	configuration.clear();
-	this->save();
-	this->load();
-}
-
-void Configuration::resetExcept(const std::list<ConfigurationKey> &keysToPreserve)
-{
-	std::map<ConfigurationKey, String> preservedKeys;
-	for (const auto &key : keysToPreserve) {
-		if (keyExists(key)) {
-			// Make a copy of the old value
-			preservedKeys[key] = get(key);
-		}
-	}
-
-	configuration.clear();
-
-	for (const auto &key : preservedKeys) {
-		set(key.first, key.second);
-	}
-
-	this->save();
-	this->load();
-}
-
-void Configuration::dump() {
-#ifndef DEBUG
-	for (const auto &p : configuration) {
-		ESP_LOGD(kLoggingTag, "configuration[%s] = %s", p.first.c_str(), p.second.c_str());
-	}
-#endif
+    return result;
 }

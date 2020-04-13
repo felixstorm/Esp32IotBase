@@ -5,7 +5,7 @@ echo "Converting files in folder \"data\" to C Header file data.h"
 DATA="data/"
 CURRDIR="$(pwd)"
 TMPDIR="$CURRDIR/tmp/"
-OUTFILE="$CURRDIR/data.hpp"
+OUTFILE="$CURRDIR/CompressedData.hpp"
 
 
 mkdir $TMPDIR
@@ -13,8 +13,8 @@ mkdir $TMPDIR
 cp $DATA/* $TMPDIR
 cd $TMPDIR
 
-yuicompressor -o '.css$:.css' *.css
-yuicompressor -o '.js$:.js' *.js
+yui-compressor -o '.css$:.css' *.css
+yui-compressor -o '.js$:.js' *.js
 
 # :a;N;$!ba; will move all lines into the pattern space (internal buffer of sed)
 # so that the next command will also remove the line breaks (which are also whitespaces)
@@ -26,8 +26,9 @@ sed  -i ':a;N;$!ba;s/>\s*</></g' *.htm
 gzip *
 cat > $OUTFILE <<DELIMITER
 /*
-   Basecamp - ESP32 library to simplify the basics of IoT projects
-   Written by Merlin Schumacher (mls@ct.de) for c't magazin für computer technik (https://www.ct.de)
+   Esp32IotBase - ESP32 library to simplify the basics of IoT projects
+   by Felix Storm (http://github.com/felixstorm)
+   Heavily based on Basecamp (https://github.com/ct-Open-Source/Basecamp) by Merlin Schumacher (mls@ct.de)
    Licensed under GPLv3. See LICENSE for details.
    */
 
@@ -46,8 +47,8 @@ for i in $(ls -1); do
 	CONTENT=$(cat $i | xxd -i)
 	CONTENT_LEN=$(echo $CONTENT | grep -o '0x' | wc -l)
 	FILENAME=${i//[.]/_}
-	printf "#define "$FILENAME"_len "$CONTENT_LEN"\n" >> $OUTFILE
-	printf "const uint8_t "$FILENAME"[] PROGMEM {\n$CONTENT\n};" >> $OUTFILE
+	printf "static const size_t k_"$FILENAME"_len = "$CONTENT_LEN";\n" >> $OUTFILE
+	printf "static const uint8_t k_"$FILENAME"[] = {\n$CONTENT\n};" >> $OUTFILE
 	echo >> $OUTFILE
 	unset CONTENT
 done
