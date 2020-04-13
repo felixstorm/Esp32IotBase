@@ -45,6 +45,8 @@ void Esp32IotBase::Begin(String fixedWiFiApEncryptionPassword)
     ESP_LOGW(kLoggingTag, "DeviceName:      %s", Config.Get(ConfigurationKey::DeviceName).c_str());
     ESP_LOGW(kLoggingTag, "Hostname:        %s", Hostname.c_str());
     ESP_LOGW(kLoggingTag, "MAC-Address:     %s", Mac.c_str());
+    ESP_LOGW(kLoggingTag, "IP-Address:      %s", Network.GetIp().toString().c_str());
+    ESP_LOGW(kLoggingTag, "AP IP-Address:   %s", Network.GetSoftApIp().toString().c_str());
     ESP_LOGW(kLoggingTag, "SetupWifiEncr:   %d", static_cast<int>(setupModeWifiEncryption_));
     ESP_LOGW(kLoggingTag, "ConfigurationUI: %d", static_cast<int>(configurationUi_));
     ESP_LOGW(kLoggingTag, "WifiSsid:        %s", Config.Get(ConfigurationKey::WifiSsid).c_str());
@@ -207,7 +209,6 @@ void Esp32IotBase::checkConfigureOta_()
                     type = "sketch";
                     else // U_SPIFFS
                     type = "filesystem";
-                    SPIFFS.end();
 
                     ESP_LOGW(kLoggingTag, "Start updating %s", type.c_str());
                     })
@@ -304,13 +305,14 @@ void Esp32IotBase::checkConfigureWebserver_()
         Web.UiAddElement("footer", "footer", "Powered by ", "body");
         Web.UiAddElement("footerlink", "a", "Esp32IotBase", "footer"); Web.UiSetLastEleAttr("href", "https://github.com/felixstorm/Esp32IotBase"); Web.UiSetLastEleAttr("target", "_blank");
 
-        #ifdef ESP32IOTBASE_USEDNS
-            #ifdef DNSServer_h
-            if (!Config.Get(ConfigurationKey::WifiConfigured).equalsIgnoreCase("true")) {
-                dnsServer.start(53, "*", network.getSoftAPIP());
-                xTaskCreatePinnedToCore(&DnsHandling, "DNSTask", 4096, (void*) &dnsServer, 5, NULL,0);
+        #ifndef ESP32IOTBASE_NO_CAPTIVE_PORTAL
+            if (Network.GetWiFiOperationMode() == NetworkControlBase::Mode::accessPoint) {
+                ESP_LOGI(kLoggingTag, "* Initializing captive portal (web request handler & wildcard DNS server)");
+                IPAddress softApIp = Network.GetSoftApIp();
+                Web.AddCaptiveRequestHandler(softApIp);
+                dnsServer_.start(53, "*", softApIp);
+                xTaskCreatePinnedToCore(&dnsHandlerTask_, "IotBaseDns", 4096, (void*) &dnsServer_, 5, NULL, CONFIG_ARDUINO_RUNNING_CORE);
             }
-            #endif
         #endif
 
         // Start webserver and pass the configuration object to it
@@ -328,17 +330,14 @@ void Esp32IotBase::checkConfigureWebserver_()
 #endif
 }
 
-#ifdef ESP32IOTBASE_USEDNS
-#ifdef DNSServer_h
-// This is a task that handles DNS requests from clients
-void Esp32IotBase::DnsHandling(void * dnsServerPointer)
+// handles DNS requests from clients for the captive portal
+void Esp32IotBase::dnsHandlerTask_(void* dnsServerPointer)
 {
-        DNSServer * DnsServer = (DNSServer *) dnsServerPointer;
+    #ifndef ESP32IOTBASE_NO_CAPTIVE_PORTAL
+        DNSServer* DnsServer = (DNSServer*) dnsServerPointer;
         while(1) {
-            // handle each request
             DnsServer->processNextRequest();
-            vTaskDelay(1000);
+            vTaskDelay(100);
         }
+    #endif
 };
-#endif
-#endif

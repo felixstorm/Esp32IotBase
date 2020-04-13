@@ -85,6 +85,10 @@ String NetworkControlWiFi::GetMacAddress(const String& delimiter)
     return format6Bytes_(rawMac, delimiter);
 }
 
+IPAddress NetworkControlWiFi::GetSoftApIp() {
+    return WiFi.softAPIP();
+}
+
 void NetworkControlWiFi::wiFiEvent_(WiFiEvent_t event)
 {
     ESP_LOGD(kLoggingTag, "WiFiEvent %d", event);

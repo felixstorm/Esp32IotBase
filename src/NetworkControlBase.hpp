@@ -27,7 +27,8 @@ class NetworkControlBase {
         virtual String GetMacAddress(const String& delimiter = {}) = 0;
 
         virtual bool IsConnected();
-        virtual IPAddress GetIP();
+        virtual IPAddress GetIp();
+        virtual IPAddress GetSoftApIp();
 
         virtual Mode GetWiFiOperationMode() const;
 

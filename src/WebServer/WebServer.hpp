@@ -11,25 +11,32 @@
 
 #include <map>
 #include <vector>
-#include <SPIFFS.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 
-#include "CompressedData.hpp"
 #include "Configuration.hpp"
 #include "WebInterface.hpp"
 
-#ifdef ESP32IOTBASE_USEDNS
-#ifdef DNSServer_h
+// declared up here since the handlers (may) need it
+void WebServerDebugPrintRequestImpl(esp_log_level_t level, const char* tag, const char* logPrefix, AsyncWebServerRequest *request);
+#define ESP_LOG_WEBREQUEST(level, tag, request) do {                                                \
+        if (LOG_LOCAL_LEVEL >= level) {                                                             \
+            char logPrefixBuffer[255];                                                              \
+            snprintf(logPrefixBuffer, sizeof(logPrefixBuffer), LOG_FORMAT(-, tag, "Web request:")); \
+            WebServerDebugPrintRequestImpl(level, tag, logPrefixBuffer, request);                   \
+        };                                                                                          \
+    } while(0);
+
+#include "InternalGzippedFilesHandler.hpp"
 #include "CaptiveRequestHandler.hpp"
-#endif
-#endif
+
 
 class WebServer {
     public:
         WebServer();
 
         void Begin(Configuration &configuration, std::function<void()> submitFunc = 0);
+        void AddCaptiveRequestHandler(IPAddress localIpAddress);
 
         void UiAddElement(const String &elementId, const String &elementName, const String &content, const String &parent = "#configform", const String &configVariable = "");
         void UiAddFormInput(const ConfigurationKey &configVariable, const String &content);
@@ -37,8 +44,6 @@ class WebServer {
         void UiSetLastEleAttr(const String &attributeKey, const String &attributeValue);
 
     private:
-        void debugPrintRequest_(AsyncWebServerRequest *request);
-
         AsyncWebServer server_;
 
         std::vector<InterfaceElement> interfaceElements_;

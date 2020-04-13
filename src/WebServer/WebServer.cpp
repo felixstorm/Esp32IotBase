@@ -15,41 +15,18 @@ namespace {
 WebServer::WebServer()
     : server_(80)
 {
-#ifdef ESP32IOTBASE_USEDNS
-#ifdef DNSServer_h
-    server_.addHandler(new CaptiveRequestHandler()).setFilter(ON_AP_FILTER);
-#endif
-#endif
+}
+
+void WebServer::AddCaptiveRequestHandler(IPAddress localIpAddress)
+{
+    #ifndef ESP32IOTBASE_NO_CAPTIVE_PORTAL
+        server_.addHandler(new CaptiveRequestHandler(localIpAddress)).setFilter(ON_AP_FILTER);
+    #endif
 }
 
 void WebServer::Begin(Configuration &configuration, std::function<void()> submitFunc) {
 
-    server_.on("/" , HTTP_GET, [](AsyncWebServerRequest * request)
-    {
-            AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", k_index_htm_gz, k_index_htm_gz_len);
-            response->addHeader("Content-Encoding", "gzip");
-            request->send(response);
-    });
-
-    server_.on("/esp32iotbase.css" , HTTP_GET, [](AsyncWebServerRequest * request)
-    {
-            AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", k_esp32iotbase_css_gz, k_esp32iotbase_css_gz_len);
-            response->addHeader("Content-Encoding", "gzip");
-            request->send(response);
-    });
-
-    server_.on("/esp32iotbase.js" , HTTP_GET, [](AsyncWebServerRequest * request)
-    {
-            AsyncWebServerResponse *response = request->beginResponse_P(200, "text/javascript", k_esp32iotbase_js_gz, k_esp32iotbase_js_gz_len);
-            response->addHeader("Content-Encoding", "gzip");
-            request->send(response);
-    });
-    server_.on("/logo.svg" , HTTP_GET, [](AsyncWebServerRequest * request)
-    {
-            AsyncWebServerResponse *response = request->beginResponse_P(200, "image/svg+xml", k_logo_svg_gz, k_logo_svg_gz_len);
-            response->addHeader("Content-Encoding", "gzip");
-            request->send(response);
-    });
+    server_.addHandler(new InternalGzippedFilesHandler());
 
     server_.on("/data.json" , HTTP_GET, [&configuration, this](AsyncWebServerRequest * request)
     {
@@ -83,9 +60,13 @@ void WebServer::Begin(Configuration &configuration, std::function<void()> submit
                     }
                 }
             }
-#ifdef DEBUG
-            serializeJsonPretty(_jsonData, Serial);
-#endif
+
+            if (LOG_LOCAL_LEVEL >= ESP_LOG_VERBOSE) {
+                std::ostringstream output;
+                serializeJsonPretty(_jsonData, output);
+                ESP_LOGV(kLoggingTag, "\r\n%s", output.str().c_str());
+            }
+
             response->setLength();
 
             // NOTE: AsyncServer.send(ptr* foo) deletes `response` after async send.
@@ -94,12 +75,13 @@ void WebServer::Begin(Configuration &configuration, std::function<void()> submit
 
     server_.on("/submitconfig", HTTP_POST, [&configuration, submitFunc, this](AsyncWebServerRequest *request)
     {
+            ESP_LOG_WEBREQUEST(ESP_LOG_VERBOSE, kLoggingTag, request);
+
             if (request->params() == 0) {
                 ESP_LOGW(kLoggingTag, "Refusing to take over an empty configuration submission.");
                 request->send(500);
                 return;
             }
-            debugPrintRequest_(request);
 
             for (int i = 0; i < request->params(); i++)
             {
@@ -123,65 +105,12 @@ void WebServer::Begin(Configuration &configuration, std::function<void()> submit
 
     server_.onNotFound([this](AsyncWebServerRequest *request)
     {
-        ESP_LOGD(kLoggingTag, "Request not found:");
-        debugPrintRequest_(request);
+        ESP_LOG_WEBREQUEST(ESP_LOG_VERBOSE, kLoggingTag, request);
+        ESP_LOGD(kLoggingTag, "Request not found: %s", request->url().c_str());
         request->send(404);
     });
     
     server_.begin();
-}
-
-void WebServer::debugPrintRequest_(AsyncWebServerRequest *request)
-{
-#ifdef DEBUG
-        /**
-         That AsyncWebServer code uses some strange bit-consstructs instead of enum
-         class. Also no const getter. As I refuse to bring that code to 21st century,
-         we have to live with it until someone brave fixes it.
-        */
-        const std::map<WebRequestMethodComposite, std::string> requestMethods{
-            { HTTP_GET, "GET" },
-            { HTTP_POST, "POST" },
-            { HTTP_DELETE, "DELETE" },
-            { HTTP_PUT, "PUT" },
-            { HTTP_PATCH, "PATCH" },
-            { HTTP_HEAD, "HEAD" },
-            { HTTP_OPTIONS, "OPTIONS" },
-        };
-
-        std::ostringstream output;
-
-        output << "Method: ";
-        auto found = requestMethods.find(request->method());
-        if (found != requestMethods.end()) {
-            output << found->second;
-        } else {
-            output << "Unknown (" << static_cast<unsigned int>(request->method()) << ")";
-        }
-
-        output << std::endl;
-        output << "URL: " << request->url().c_str() << std::endl;
-        output << "Content-Length: " << request->contentLength() << std::endl;
-        output << "Content-Type: " << request->contentType().c_str() << std::endl;
-
-        output << "Headers: " << std::endl;
-        for (int i = 0; i < request->headers(); i++) {
-                auto *header = request->getHeader(i);
-                output << "\t" << header->name().c_str() << ": " << header->value().c_str() << std::endl;
-        }
-
-        output << "Parameters: " << std::endl;
-        for (int i = 0; i < request->params(); i++) {
-                auto *parameter = request->getParam(i);
-                output << "\t";
-                if (parameter->isFile()) {
-                    output << "This is a file. FileSize: " << parameter->size() << std::endl << "\t\t";
-                }
-                output << parameter->name().c_str() << ": " << parameter->value().c_str() << std::endl;
-        }
-
-        Serial.println(output.str().c_str());
-#endif
 }
 
 // Remark: The server should be stopped before any changes to the interface elements are done to avoid inconsistent results if a request comes in at that very moment.
@@ -213,4 +142,53 @@ void WebServer::UiSetElementAttribute(const String &elementId, const String &att
 void WebServer::UiSetLastEleAttr(const String &attributeKey, const String &attributeValue)
 {
     interfaceElements_.back().setAttribute(attributeKey, attributeValue);
+}
+
+
+void WebServerDebugPrintRequestImpl(esp_log_level_t level, const char* tag, const char* logPrefix, AsyncWebServerRequest *request)
+{
+        // AsyncWebServer code uses some strange bit-consstructs instead of enum class. Also no const getter.
+        const std::map<WebRequestMethodComposite, std::string> requestMethods{
+            { HTTP_GET, "GET" },
+            { HTTP_POST, "POST" },
+            { HTTP_DELETE, "DELETE" },
+            { HTTP_PUT, "PUT" },
+            { HTTP_PATCH, "PATCH" },
+            { HTTP_HEAD, "HEAD" },
+            { HTTP_OPTIONS, "OPTIONS" },
+        };
+
+        std::ostringstream output;
+
+        output << "Method: ";
+        auto found = requestMethods.find(request->method());
+        if (found != requestMethods.end()) {
+            output << found->second;
+        } else {
+            output << "Unknown (" << static_cast<unsigned int>(request->method()) << ")";
+        }
+        output << std::endl;
+
+        output << "Host: " << request->host().c_str() << std::endl;
+        output << "URL: " << request->url().c_str() << std::endl;
+        output << "Content-Length: " << request->contentLength() << std::endl;
+        output << "Content-Type: " << request->contentType().c_str() << std::endl;
+
+        output << "Headers: " << std::endl;
+        for (int i = 0; i < request->headers(); i++) {
+                auto *header = request->getHeader(i);
+                output << "\t" << header->name().c_str() << ": " << header->value().c_str() << std::endl;
+        }
+
+        output << "Parameters: " << std::endl;
+        for (int i = 0; i < request->params(); i++) {
+                auto *parameter = request->getParam(i);
+                output << "\t";
+                if (parameter->isFile()) {
+                    output << "This is a file. FileSize: " << parameter->size() << std::endl << "\t\t";
+                }
+                output << parameter->name().c_str() << ": " << parameter->value().c_str() << std::endl;
+        }
+
+        esp_log_write(level, tag, "%s%s", logPrefix, output.str().c_str());
 }

@@ -1,29 +1,36 @@
 #pragma once
 
+#include <ESPAsyncWebServer.h>
+
+
 class CaptiveRequestHandler : public AsyncWebHandler {
+
+    private:
+        const char* kLoggingTag = "IotBaseWebCaptiveHandler";
+        String localIpAddressString_;
+
     public:
-        CaptiveRequestHandler() {
-        }
-        virtual ~CaptiveRequestHandler() {
+        CaptiveRequestHandler(IPAddress localIpAddress)
+            : localIpAddressString_(localIpAddress.toString())
+        {
         }
 
         bool canHandle(AsyncWebServerRequest *request) {
-            //skip all Esp32IotBase related sources - handle all other requests and return the default html
-            if (request->url() != "/esp32iotbase.css" && 
-                    request->url() != "/esp32iotbase.js" && 
-                    request->url() != "/data.json" && 
-                    request->url() != "/logo.svg" && 
-                    request->url() != "/submitconfig") {
-                return true;
-            } else {
-                return false;
-            }
+            // handle all requests not directed directly to us
+            bool result = request->host() != localIpAddressString_;
+
+            ESP_LOG_WEBREQUEST(ESP_LOG_VERBOSE, kLoggingTag, request);
+            ESP_LOGV(kLoggingTag, "result: %d", result);
+
+            return result;
         }
 
         void handleRequest(AsyncWebServerRequest *request) {
-            AsyncWebServerResponse *response = request->beginResponse_P(
-                    200, "text/html", index_htm_gz, index_htm_gz_len);
-            response->addHeader("Content-Encoding", "gzip");
+            // redirect to our IP and root
+            // cannot use request->redirect() as we also want to set Cache-Control: no-store to ensure it's temporary only
+            AsyncWebServerResponse * response = request->beginResponse(302);
+            response->addHeader("Location", "http://" + localIpAddressString_ + "/");
+            response->addHeader("Cache-Control", "no-store");
             request->send(response);
         }
 };

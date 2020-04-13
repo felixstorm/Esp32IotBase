@@ -5,7 +5,7 @@ echo "Converting files in folder \"data\" to C Header file data.h"
 DATA="data/"
 CURRDIR="$(pwd)"
 TMPDIR="$CURRDIR/tmp/"
-OUTFILE="$CURRDIR/CompressedData.hpp"
+OUTFILE="$CURRDIR/InternalGzippedFilesContent.hpp"
 
 
 mkdir $TMPDIR

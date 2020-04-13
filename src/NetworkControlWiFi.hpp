@@ -10,6 +10,7 @@ class NetworkControlWiFi : public NetworkControlBase {
     public:
         virtual void Begin(Configuration& configuration, bool encryptAp, String fixedApPassword, String hostname = "Esp32IotDevice");
         virtual String GetMacAddress(const String& delimiter = {});
+        virtual IPAddress GetSoftApIp();
 
     private:
         static void wiFiEvent_(WiFiEvent_t event);

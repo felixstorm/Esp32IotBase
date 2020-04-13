@@ -18,20 +18,20 @@
 #include "NetworkControlEth.hpp"
 #endif
 
-#ifndef ESP32IOTBASE_NO_WEB
-#ifdef ESP32IOTBASE_USEDNS
-#include <DNSServer.h>
-#endif
-
-#include "WebServer/WebServer.hpp"
-#endif
-
 #ifndef ESP32IOTBASE_NO_MQTT
 #include "EspIdfMqttClient.hpp"
 #endif
 
 #ifndef ESP32IOTBASE_NO_OTA
 #include <ArduinoOTA.h>
+#endif
+
+#ifndef ESP32IOTBASE_NO_WEB
+#include "WebServer/WebServer.hpp"
+#endif
+
+#if !(defined(ESP32IOTBASE_NO_WEB) || defined(ESP32IOTBASE_NO_CAPTIVE_PORTAL))
+#include <DNSServer.h>
 #endif
 
 class Esp32IotBase
@@ -82,13 +82,6 @@ class Esp32IotBase
 #endif
 
 #ifndef ESP32IOTBASE_NO_WEB
-
-#ifdef ESP32IOTBASE_USEDNS
-#ifdef DNSServer_h
-        DNSServer DnsServer;
-        static void DnsHandling(void *);
-#endif
-#endif
         WebServer Web;
 #endif
 
@@ -105,4 +98,9 @@ class Esp32IotBase
         void checkConfigureMqtt_();
         void checkConfigureOta_();
         void checkConfigureWebserver_();
+
+#if !(defined(ESP32IOTBASE_NO_WEB) || defined(ESP32IOTBASE_NO_CAPTIVE_PORTAL))
+        DNSServer dnsServer_;
+        static void dnsHandlerTask_(void* dnsServerPointer);
+#endif
 };

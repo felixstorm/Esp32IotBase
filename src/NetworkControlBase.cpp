@@ -16,8 +16,12 @@ bool NetworkControlBase::IsConnected()
     return localIp_ != 0;
 }
 
-IPAddress NetworkControlBase::GetIP() {
+IPAddress NetworkControlBase::GetIp() {
     return localIp_;
+}
+
+IPAddress NetworkControlBase::GetSoftApIp() {
+    return {};
 }
 
 NetworkControlBase::Mode NetworkControlBase::GetWiFiOperationMode() const
