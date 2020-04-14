@@ -198,11 +198,12 @@ void Esp32IotBase::checkConfigureMqtt_()
 
     const auto &mqttHost = Config.Get(ConfigurationKey::MqttHost);
     if (!mqttHost.isEmpty()) {
-        ESP_LOGI(kLoggingTag, "* Initializing MQTT");
+        ESP_LOGI(kLoggingTag, "* MQTT: Configuring & connecting ...");
         Mqtt.BeginWithHost(mqttHost, Config.Get(ConfigurationKey::MqttUser), Config.Get(ConfigurationKey::MqttPassword),
                            Hostname, Config.Get(ConfigurationKey::MqttHaDiscPref));
+        ESP_LOGI(kLoggingTag, "* MQTT: -> Configuration completed.");
     } else {
-        ESP_LOGI(kLoggingTag, "* MQTT not configured");
+        ESP_LOGI(kLoggingTag, "* MQTT: Not configured.");
     }
 
 #endif
@@ -215,10 +216,10 @@ void Esp32IotBase::checkConfigureOta_()
     // Set up Over-the-Air-Updates (OTA) if it hasn't been disabled.
     if (!Config.Get(ConfigurationKey::OtaActive).equalsIgnoreCase("false")) {
 
-        ESP_LOGI(kLoggingTag, "* Initializing OTA");
-
-        // Set OTA password
         String OtaPassword = Config.Get(ConfigurationKey::OtaPassword);
+
+        ESP_LOGI(kLoggingTag, "* OTA: Configuring with password %s ...", OtaPassword.c_str());
+
         if (!OtaPassword.isEmpty()) {
             ArduinoOTA.setPassword(OtaPassword.c_str());
         }
@@ -259,8 +260,9 @@ void Esp32IotBase::checkConfigureOta_()
         // Start the OTA service
         ArduinoOTA.begin();
 
+        ESP_LOGI(kLoggingTag, "* OTA: -> Configuration completed.");
     } else {
-        ESP_LOGI(kLoggingTag, "* OTA not enabled");
+        ESP_LOGI(kLoggingTag, "* OTA: Not configured.");
     }
 
 #endif
@@ -273,7 +275,7 @@ void Esp32IotBase::checkConfigureWebserver_()
     if (configurationUi_ == ConfigurationUI::always ||
        (configurationUi_ == ConfigurationUI::accessPoint && Network.GetWiFiOperationMode() == NetworkControlBase::Mode::accessPoint))
     {
-        ESP_LOGI(kLoggingTag, "* Configuring web server");
+        ESP_LOGI(kLoggingTag, "* Web Server: Configuring ...");
 
         String deviceName = Config.Get(ConfigurationKey::DeviceName);
         if (deviceName == "") {
@@ -349,8 +351,9 @@ void Esp32IotBase::checkConfigureWebserver_()
         };
         Web.Begin(Config, restartAfterSubmit);
 
+        ESP_LOGI(kLoggingTag, "* Web Server: -> Configuration completed.");
     } else {
-        ESP_LOGI(kLoggingTag, "* Web server not enabled");
+        ESP_LOGI(kLoggingTag, "* Web Server: Not configured.");
     }
 
 #endif
