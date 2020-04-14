@@ -47,11 +47,12 @@ void NetworkControlBase::configureNetworkConnectionWdt_()
 void NetworkControlBase::waitForConnection_()
 {
     // make sure we are fully connected when we return from begin()
-    ESP_LOGI(kLoggingTag, "Waiting for connection") ;
     while (!IsConnected()) {
-        Serial.print(".") ;
-        delay(100) ;
+        ESP_LOGI(kLoggingTag, "Waiting for connection...");
+        delay(1000);
     }
+    delay(1000);
+    ESP_LOGI(kLoggingTag, "Successfully connected.");
 }
 
 void NetworkControlBase::networkConnectedWdtElapsed_(TimerHandle_t xTimer)

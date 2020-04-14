@@ -49,7 +49,7 @@ void NetworkControlWiFi::Begin(Configuration& configuration, bool encryptAp, Str
         configuration.Set(ConfigurationKey::ApSecret, apSecret);
         configuration.Save();
 
-        WiFi.mode(WIFI_AP_STA);
+        WiFi.mode(WIFI_AP);
         if (apSecret.length() > 0) {
             ESP_LOGI(kLoggingTag, "Starting AP with password %s\n", apSecret.c_str());
             WiFi.softAP(wifiAPName.c_str(), apSecret.c_str());
@@ -64,12 +64,15 @@ void NetworkControlWiFi::Begin(Configuration& configuration, bool encryptAp, Str
         
         ESP_LOGI(kLoggingTag, "Wifi is configured, connecting to '%s'", wifiSsid.c_str());
 
+        WiFi.mode(WIFI_STA);
+        // WiFi.config seems to be necessary for DHCP to send hostname, see https://github.com/espressif/arduino-esp32/issues/2537
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        WiFi.setHostname(hostname.c_str());
         WiFi.begin(wifiSsid.c_str(), wifiPassword.c_str());
         // TBD klären
         // https://github.com/me-no-dev/ESPAsyncWebServer/issues/437
         // https://github.com/espressif/arduino-esp32/issues/3157
         WiFi.setSleep(false);
-        WiFi.setHostname(hostname.c_str());
         //WiFi.setAutoConnect ( true );
         //WiFi.setAutoReconnect ( true );
 

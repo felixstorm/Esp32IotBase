@@ -14,7 +14,8 @@ void NetworkControlEth::Begin(Configuration& configuration, bool encryptAp, Stri
 
     WiFi.onEvent(wiFiEvent_);
 
-    ETH.begin() ;
+    ETH.begin();
+    // ESP32 does not seem to include any hostname in DHCP requests as of now (2020-04), even ETH.connect does not seem to help (as with WiFi)
     ETH.setHostname(hostname.c_str());
     ESP_LOGD(kLoggingTag, "Ethernet initialized") ;
 
@@ -25,7 +26,7 @@ void NetworkControlEth::Begin(Configuration& configuration, bool encryptAp, Stri
 String NetworkControlEth::GetMacAddress(const String &delimiter)
 {
     uint8_t rawMac[6];
-    ETH.macAddress(rawMac);
+    esp_eth_get_mac(rawMac); // ETH.macAddress(rawMac) results in linker error
     return format6Bytes_(rawMac, delimiter);
 }
 
