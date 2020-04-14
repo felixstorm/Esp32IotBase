@@ -55,9 +55,15 @@ EspIdfMqttClient& EspIdfMqttClient::BeginWithUri(const String& mqttUri, const St
 }
 
 EspIdfMqttClient& EspIdfMqttClient::OnConnect(OnConnectUserCallback callback) {
-  // TBD: fire immediately if alreay connected?
+
   _onConnectUserCallbacks.push_back(callback);
+
+  // fire immediately if alreay connected
+  if (isConnected_)
+    callback();
+
   return *this;
+
 }
 
 esp_err_t EspIdfMqttClient::StaticEventHandler(esp_mqtt_event_handle_t event)
@@ -69,11 +75,23 @@ esp_err_t EspIdfMqttClient::StaticEventHandler(esp_mqtt_event_handle_t event)
 
 esp_err_t EspIdfMqttClient::EventHandler(esp_mqtt_event_handle_t event)
 {
-    if (event->event_id == MQTT_EVENT_CONNECTED)
+    switch (event->event_id)
     {
+    case MQTT_EVENT_CONNECTED:
         ESP_LOGI(kLoggingTag, "Connected");
+        isConnected_ = true;
         for (auto callback : _onConnectUserCallbacks)
             callback();
+        break;
+
+    case MQTT_EVENT_DISCONNECTED:
+        ESP_LOGI(kLoggingTag, "Disconnected");
+        isConnected_ = false;
+        break;
+    
+    // ignore the rest
+    default:
+        break;
     }
 
     return ESP_OK;

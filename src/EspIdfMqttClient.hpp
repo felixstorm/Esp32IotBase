@@ -25,4 +25,5 @@ class EspIdfMqttClient {
         static esp_err_t StaticEventHandler(esp_mqtt_event_handle_t event);
         esp_err_t EventHandler(esp_mqtt_event_handle_t event);
         std::vector<OnConnectUserCallback> _onConnectUserCallbacks;
+        bool isConnected_;
 };
