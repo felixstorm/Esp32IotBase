@@ -101,22 +101,23 @@ void Configuration::SetInt(const char* key, int value) {
 
 const String Configuration::Get(const ConfigurationKey &key, const String &defaultValue) const
 {
-    return Get(key._to_string());
+    return Get(key._to_string(), defaultValue);
 }
 
 const String Configuration::Get(const String &key, const String &defaultValue) const
 {
-    return Get(key.c_str());
+    return Get(key.c_str(), defaultValue);
 }
 
 const String Configuration::Get(const char* key, const String &defaultValue) const
 {
     size_t required_size;
     esp_err_t err = nvs_get_str(nvsHandle_, key, NULL, &required_size);
-    if (err) {
-        if (err != ESP_ERR_NVS_NOT_FOUND)
-            ESP_LOGE(kLoggingTag, "Error determining length of string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
-        ESP_LOGD(kLoggingTag, "Tried to read string '%s' from NVS flash: not found", key);
+    if (err && err != ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGE(kLoggingTag, "Error determining length of string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    }
+    if (err == ESP_ERR_NVS_NOT_FOUND || required_size == 0) {
+        ESP_LOGD(kLoggingTag, "Tried to read string '%s' from NVS flash: not found or empty - returning default value '%s'", key, defaultValue.c_str());
         return defaultValue;
     }
 
