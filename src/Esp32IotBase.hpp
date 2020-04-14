@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <Esp32Logging.hpp>
+#include <Esp32ExtendedLogging.hpp>
 #include "Configuration.hpp"
 #include <rom/rtc.h>
 
@@ -94,6 +94,7 @@ class Esp32IotBase
         void handleQuickRebootsToResetConfig_();
         static void resetquickRebootCounterTimer_(TimerHandle_t xTimer);
 
+        void checkConfigureSyslog_();
         void checkConfigureSntp_();
         void checkConfigureMqtt_();
         void checkConfigureOta_();

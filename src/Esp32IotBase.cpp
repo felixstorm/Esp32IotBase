@@ -13,6 +13,12 @@ namespace {
     const constexpr char* kLoggingTag = "IotBase";
 }
 
+#ifndef ESP32IOTBASE_NO_SYSLOG
+WiFiUDP Esp32ExtLogUdpClient;
+Esp32ExtendedLogging Esp32ExtLog;
+#endif
+
+
 Esp32IotBase::Esp32IotBase(SetupModeWifiEncryption setupModeWifiEncryption, ConfigurationUI configurationUi) : 
     Config(), 
     setupModeWifiEncryption_(setupModeWifiEncryption), 
@@ -71,6 +77,7 @@ void Esp32IotBase::Begin(String fixedWiFiApEncryptionPassword)
     ESP_LOGW(kLoggingTag, "***********************************************");
 
     if (IsConfigured) {
+        checkConfigureSyslog_();
         checkConfigureSntp_();
         checkConfigureMqtt_();
         checkConfigureOta_();
@@ -144,6 +151,25 @@ void Esp32IotBase::resetquickRebootCounterTimer_(TimerHandle_t xTimer)
     Esp32IotBase* iotBase = (Esp32IotBase*) pvTimerGetTimerID(xTimer);
     iotBase->Config.SetInt(ConfigurationKey::QuickBootCount, 0);
     iotBase->Config.Save();
+}
+
+void Esp32IotBase::checkConfigureSyslog_()
+{
+#ifndef ESP32IOTBASE_NO_SYSLOG
+
+        auto &syslogServer = Config.Get(ConfigurationKey::SyslogServer);
+        if (!syslogServer.isEmpty())
+        {
+            ESP_LOGI(kLoggingTag, "* Syslog: Configuring to host %s ...", syslogServer.c_str());
+            Esp32ExtLog.deviceHostname(Hostname.c_str()).doSyslog(Esp32ExtLogUdpClient, syslogServer.c_str()).begin();
+            ESP_LOGI(kLoggingTag, "* Syslog: -> Configuration completed.");
+        }
+        else
+        {
+            ESP_LOGI(kLoggingTag, "* Syslog: Not configured.");
+        }
+
+#endif
 }
 
 void Esp32IotBase::checkConfigureSntp_()
