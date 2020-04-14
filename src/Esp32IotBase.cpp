@@ -176,18 +176,21 @@ void Esp32IotBase::checkConfigureSntp_()
 {
 #ifndef ESP32IOTBASE_NO_SNTP
 
-    ESP_LOGI(kLoggingTag, "* Initializing SNTP");
+    auto &sntpServer = Config.Get(ConfigurationKey::SntpServer, "pool.ntp.org");
+    auto &sntpTz = Config.Get(ConfigurationKey::SntpTz, "CET-1CEST,M3.5.0/2:00,M10.5.0/3:00:");
+    ESP_LOGI(kLoggingTag, "* SNTP: Configuring with server %s and TZ %s ...", sntpServer.c_str(), sntpTz.c_str());
 
     // sntp_setservername won't take const, so we need to copy it to a buffer first
-    auto &sntpServer = Config.Get(ConfigurationKey::SntpServer, "pool.ntp.org");
     char sntpServerBuffer[sntpServer.length() + 1];
     sntpServer.toCharArray(sntpServerBuffer, sizeof(sntpServerBuffer));
-    
+
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, sntpServerBuffer);
     sntp_init();
-    setenv("TZ", Config.Get(ConfigurationKey::SntpTz, "CET-1CEST,M3.5.0/2:00,M10.5.0/3:00:").c_str(), 1);
+    setenv("TZ", sntpTz.c_str(), 1);
     tzset();
+
+    ESP_LOGI(kLoggingTag, "* SNTP: -> Configuration completed.");
 
 #endif
 }
