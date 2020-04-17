@@ -153,11 +153,11 @@ void EspIdfMqttClient::PublishHaDiscoveryInformation(bool isBinary, const String
             entityIdSuffixInt += "_" + stateTopicSuffix;
         if (!entitySuffix.isEmpty())
             entityIdSuffixInt += "_" + entitySuffix;
-        
-        // TBD slash vs. underscore
+
         String uniqueDeviceId = "esp32_" + macAddress;
         String uniqueEntityId = uniqueDeviceId + entityIdSuffixInt;
         String entityName = deviceName + entityIdSuffixInt;
+        cleanIdStringForHomeAssistant(entityName); // HA only allows entity names that match ^(?!.+__)(?!_)[\da-z_]+(?<!_)\.(?!_)[\da-z_]+(?<!_)$
         String entityStateTopic = baseTopic;
         if (!stateTopicSuffix.isEmpty())
             entityStateTopic += "/" + stateTopicSuffix;
@@ -207,3 +207,17 @@ void EspIdfMqttClient::PublishHaDiscoveryInformation(bool isBinary, const String
         Publish(haDiscovery, true, "", haDiscoveryTopicPrefix + "/" + haEntityType + "/" + uniqueEntityId + "/config");
     }
 }
+
+void EspIdfMqttClient::cleanIdStringForHomeAssistant(String& haIdString)
+{
+    ESP_LOGD(kLoggingTag, "Before: %s", haIdString.c_str());
+
+    haIdString.toLowerCase();
+    for (int i = 0; i <= haIdString.length(); i++) {
+        if (!isalnum(haIdString.charAt(i))) {
+            haIdString.setCharAt(i,'_');
+        };
+    };
+
+    ESP_LOGD(kLoggingTag, "After: %s", haIdString.c_str());
+};
