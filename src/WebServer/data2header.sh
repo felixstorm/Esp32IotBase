@@ -53,5 +53,5 @@ for i in $(ls -1); do
 	unset CONTENT
 done
 rm $TMPDIR/*
-rmdir $TMPDIR
+rmdir $TMPDIR 2>/dev/null || (sleep 1 && rmdir $TMPDIR)
 cd $CURRDIR

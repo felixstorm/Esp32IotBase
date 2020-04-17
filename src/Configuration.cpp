@@ -65,7 +65,7 @@ bool Configuration::Reset()
     return Save();
 }
 
-void Configuration::Set(const ConfigurationKey &key, const String &value) {
+void Configuration::Set(const ConfigKey &key, const String &value) {
     Set(key._to_string(), value);
 }
 
@@ -74,15 +74,21 @@ void Configuration::Set(const String &key, const String &value) {
 }
 
 void Configuration::Set(const char* key, const String &value) {
-    ESP_LOGD(kLoggingTag, "Setting '%s' to '%s' (was '%s')", key, value.c_str(), Get(key).c_str());
-
-    esp_err_t err = nvs_set_str(nvsHandle_, key, value.c_str());
-    if (err) {
-        ESP_LOGE(kLoggingTag, "Error writing string '%s' to NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    
+    esp_err_t err;
+    if (value.isEmpty()) {
+        ESP_LOGD(kLoggingTag, "Erasing '%s' because it is empty (was '%s')", key, GetRaw(key).c_str());
+        err = nvs_erase_key(nvsHandle_, key);
+    } else {
+        ESP_LOGD(kLoggingTag, "Setting '%s' to '%s' (was '%s')", key, value.c_str(), Get(key).c_str());
+        err = nvs_set_str(nvsHandle_, key, value.c_str());
+    }
+    if (err && err != ESP_ERR_NVS_NOT_FOUND) { // ESP_ERR_NVS_NOT_FOUND is to be expected when erasing
+        ESP_LOGE(kLoggingTag, "Error writing or erasing string '%s' to NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
     }
 }
 
-void Configuration::SetInt(const ConfigurationKey &key, int value) {
+void Configuration::SetInt(const ConfigKey &key, int value) {
     SetInt(key._to_string(), value);
 }
 
@@ -99,7 +105,7 @@ void Configuration::SetInt(const char* key, int value) {
     }
 }
 
-const String Configuration::Get(const ConfigurationKey &key, const String &defaultValue) const
+const String Configuration::Get(const ConfigKey &key, const String &defaultValue) const
 {
     return Get(key._to_string(), defaultValue);
 }
@@ -109,16 +115,16 @@ const String Configuration::Get(const String &key, const String &defaultValue) c
     return Get(key.c_str(), defaultValue);
 }
 
-const String Configuration::Get(const char* key, const String &defaultValue) const
+const String Configuration::GetRaw(const char* key) const
 {
     size_t required_size;
     esp_err_t err = nvs_get_str(nvsHandle_, key, NULL, &required_size);
-    if (err && err != ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGE(kLoggingTag, "Error determining length of string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGD(kLoggingTag, "Tried to read string '%s' from NVS flash: not found, returning empty string", key);
+        return "";
     }
-    if (err == ESP_ERR_NVS_NOT_FOUND || required_size == 0) {
-        ESP_LOGD(kLoggingTag, "Tried to read string '%s' from NVS flash: not found or empty - returning default value '%s'", key, defaultValue.c_str());
-        return defaultValue;
+    if (err) {
+        ESP_LOGE(kLoggingTag, "Error determining length of string '%s' from NVS flash: %#x (%s)", key, err, esp_err_to_name(err));
     }
 
     char* resultBuffer = (char*) malloc(required_size);
@@ -133,7 +139,32 @@ const String Configuration::Get(const char* key, const String &defaultValue) con
     return result;
 }
 
-int Configuration::GetInt(const ConfigurationKey &key, int defaultValue) const
+const String Configuration::Get(const char* key, const String &defaultValue) const
+{
+    String result = GetRaw(key);
+    if (result.isEmpty()) {
+        ESP_LOGD(kLoggingTag, "Result string '%s' is empty", key);
+        if (!defaultValue.isEmpty()) {
+            ESP_LOGD(kLoggingTag, "Returning provided default: '%s'", defaultValue.c_str());
+            return defaultValue;
+        } else {
+            auto configDefault = StringDefaults.find(key);
+            if (configDefault != StringDefaults.end()) {
+                ESP_LOGD(kLoggingTag, "Returning Config default: '%s'", configDefault->second.c_str());
+                return configDefault->second;
+            } else {
+                ESP_LOGD(kLoggingTag, "Returning empty string.");
+                return "";
+            }
+        }
+    }
+
+    result.trim();
+
+    return result;
+}
+
+int Configuration::GetInt(const ConfigKey &key, int defaultValue) const
 {
     return GetInt(key._to_string(), defaultValue);
 }

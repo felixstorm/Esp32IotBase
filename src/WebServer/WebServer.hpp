@@ -38,8 +38,10 @@ class WebServer {
         void Begin(Configuration &configuration, std::function<void()> submitFunc = 0);
         void AddCaptiveRequestHandler(IPAddress localIpAddress);
 
+        Configuration* Config;
+
         void UiAddElement(const String &elementId, const String &elementName, const String &content, const String &parent = "#configform", const String &configVariable = "");
-        void UiAddFormInput(const ConfigurationKey &configVariable, const String &content);
+        void UiAddFormInput(const ConfigKey &configVariable, const String &content);
         void UiSetElementAttribute(const String &elementId, const String &attributeKey, const String &attributeValue);
         void UiSetLastEleAttr(const String &attributeKey, const String &attributeValue);
 

@@ -12,7 +12,7 @@ void NetworkControlWiFi::Begin(Configuration& configuration, String hostname, bo
 {
     configureNetworkConnectionWdt_();
 
-    operationMode_ = configuration.Get(ConfigurationKey::WifiSsid).length() > 0 ? Mode::client : Mode::accessPoint;
+    operationMode_ = configuration.Get(ConfigKey::WifiSsid).length() > 0 ? Mode::client : Mode::accessPoint;
 
     WiFi.onEvent(wiFiEvent_);
 
@@ -35,7 +35,7 @@ void NetworkControlWiFi::Begin(Configuration& configuration, String hostname, bo
             if (apSecret.length() >= minApSecretLength) {
                 ESP_LOGW(kLoggingTag, "Using fixed access point secret.");
             } else {
-                apSecret = configuration.Get(ConfigurationKey::ApSecret);
+                apSecret = configuration.Get(ConfigKey::ApSecret);
                 if (apSecret.length() >= minApSecretLength) {
                     ESP_LOGW(kLoggingTag, "Using saved access point secret.");
                 } else {
@@ -46,7 +46,7 @@ void NetworkControlWiFi::Begin(Configuration& configuration, String hostname, bo
         } else {
             ESP_LOGW(kLoggingTag, "Not encrypting access point.");
         }
-        configuration.Set(ConfigurationKey::ApSecret, apSecret);
+        configuration.Set(ConfigKey::ApSecret, apSecret);
         configuration.Save();
 
         WiFi.mode(WIFI_AP);
@@ -59,8 +59,8 @@ void NetworkControlWiFi::Begin(Configuration& configuration, String hostname, bo
     }
     else if (operationMode_ == Mode::client) {
 
-        String wifiSsid = configuration.Get(ConfigurationKey::WifiSsid);
-        String wifiPassword = configuration.Get(ConfigurationKey::WifiPassword);
+        String wifiSsid = configuration.Get(ConfigKey::WifiSsid);
+        String wifiPassword = configuration.Get(ConfigKey::WifiPassword);
         
         ESP_LOGI(kLoggingTag, "Wifi is configured, connecting to '%s'", wifiSsid.c_str());
 

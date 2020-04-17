@@ -49,14 +49,14 @@ void WebServer::Begin(Configuration &configuration, std::function<void()> submit
                     attributes[attribute.first] = String{attribute.second};
                 }
 
-                if (interfaceElement.getAttribute("data-config").length() != 0)
+                if (interfaceElement.getAttribute("data-configkey").length() != 0)
                 {
                     if (interfaceElement.getAttribute("type")=="password")
                     {
-                        attributes["placeholder"] = "Password unchanged";
+                        attributes["placeholder"] = "(Password unchanged)";
                         attributes["value"] = "";
                     } else {
-                        attributes["value"] = configuration.Get(interfaceElement.getAttribute("data-config"));
+                        attributes["value"] = configuration.GetRaw(interfaceElement.getAttribute("data-configkey").c_str());
                     }
                 }
             }
@@ -86,13 +86,7 @@ void WebServer::Begin(Configuration &configuration, std::function<void()> submit
             for (int i = 0; i < request->params(); i++)
             {
                 AsyncWebParameter *webParameter = request->getParam(i);
-                if (webParameter->isPost() && webParameter->value().length() != 0)
-                {
-                        // allow to clear value by entering spaces
-                        String valueTrimmed = String(webParameter->value());
-                        valueTrimmed.trim();
-                        configuration.Set(webParameter->name(), valueTrimmed);
-                }
+                configuration.Set(webParameter->name(), webParameter->value());
             }
             configuration.Save();
 
@@ -119,14 +113,19 @@ void WebServer::UiAddElement(const String &elementId, const String &elementName,
 {
     interfaceElements_.emplace_back(elementId, std::move(elementName), std::move(content), std::move(parent));
     if (configVariable.length() != 0) {
-        UiSetElementAttribute(elementId, "data-config", std::move(configVariable));
+        UiSetElementAttribute(elementId, "data-configkey", std::move(configVariable));
     }
 }
 
-void WebServer::UiAddFormInput(const ConfigurationKey &configVariable, const String &content)
+void WebServer::UiAddFormInput(const ConfigKey &configVariable, const String &content)
 {
     String elementIdAndConfigVariable = configVariable._to_string();
     UiAddElement(elementIdAndConfigVariable, "input", content, "#configform", elementIdAndConfigVariable);
+
+    // add potential default value as placeholder
+    auto configDefault = Config->StringDefaults.find(configVariable._to_string());
+    if (configDefault != Config->StringDefaults.end())
+        UiSetLastEleAttr("placeholder", configDefault->second);
 }
 
 void WebServer::UiSetElementAttribute(const String &elementId, const String &attributeKey, const String &attributeValue)

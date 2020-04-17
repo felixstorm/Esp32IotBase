@@ -93,15 +93,16 @@ function buildSite(data) {
 
 function collectConfiguration() {
     var configurationData = new FormData();
-    configurationElements = document.body.querySelectorAll('*[data-config]');
+    configurationElements = document.body.querySelectorAll('*[data-configkey]');
     for (var i = configurationElements.length - 1; i >= 0; i--) {
-        var configurationKey = configurationElements[i].getAttribute("data-config");
+        var configurationKey = configurationElements[i].getAttribute("data-configkey");
         var configurationValue = configurationElements[i].value;
+        var configurationIsPassword = configurationElements[i].type === "password";
         if (configurationElements[i].hasAttribute("required") && configurationValue == "") {
             alert("Please fill out all required values");
             return;
         }
-        if (configurationValue.length > 0 && configurationKey.length > 0) {
+        if (!configurationIsPassword || configurationValue.length > 0) {
             configurationData.append(configurationKey, configurationValue);
         }
     }

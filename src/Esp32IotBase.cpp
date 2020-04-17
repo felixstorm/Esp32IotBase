@@ -31,13 +31,19 @@ Esp32IotBase::Esp32IotBase(SetupModeWifiEncryption setupModeWifiEncryption, Conf
 
 void Esp32IotBase::Begin(String fixedWiFiApEncryptionPassword)
 {
+    // unfortunately we cannot use wildcards here
+    // esp_log_level_set("IotBase", ESP_LOG_DEBUG);
+    // esp_log_level_set("IotBaseConfig", ESP_LOG_DEBUG);
+    // esp_log_level_set("IotBaseNetwork", ESP_LOG_DEBUG);
+    // esp_log_level_set("IotBaseMqtt", ESP_LOG_DEBUG);
+
     ESP_LOGI(kLoggingTag, "*** Esp32IotBase Startup ***");
 
     Config.Begin();
 
     // Get a cleaned version of the device name, used for DHCP and ArduinoOTA
     Hostname = getCleanHostnameFromDeviceName_();
-    IsConfigured = Config.Get(ConfigurationKey::DeviceName).length() > 0;
+    IsConfigured = Config.Get(ConfigKey::DeviceName).length() > 0;
 
     // Have checkIfConfigNeedsReset() control if the device configuration should be reset or not.
     handleQuickRebootsToResetConfig_();
@@ -51,31 +57,31 @@ void Esp32IotBase::Begin(String fixedWiFiApEncryptionPassword)
     ESP_LOGW(kLoggingTag, "***********************************************");
     ESP_LOGW(kLoggingTag, "Esp32IotBase System Information");
     ESP_LOGW(kLoggingTag, "***********************************************");
-    ESP_LOGW(kLoggingTag, "DeviceName:      %s", Config.Get(ConfigurationKey::DeviceName).c_str());
+    ESP_LOGW(kLoggingTag, "DeviceName:      %s", Config.Get(ConfigKey::DeviceName).c_str());
     ESP_LOGW(kLoggingTag, "Hostname:        %s", Hostname.c_str());
     ESP_LOGW(kLoggingTag, "MAC-Address:     %s", Mac.c_str());
     ESP_LOGW(kLoggingTag, "IP-Address:      %s", Network.GetIp().toString().c_str());
     ESP_LOGW(kLoggingTag, "AP IP-Address:   %s", Network.GetSoftApIp().toString().c_str());
     ESP_LOGW(kLoggingTag, "SetupWifiEncr:   %d", static_cast<int>(setupModeWifiEncryption_));
     ESP_LOGW(kLoggingTag, "ConfigurationUI: %d", static_cast<int>(configurationUi_));
-    ESP_LOGW(kLoggingTag, "WifiSsid:        %s", Config.Get(ConfigurationKey::WifiSsid).c_str());
-    ESP_LOGW(kLoggingTag, "WifiPassword:    %s", Config.Get(ConfigurationKey::WifiPassword).c_str());
-    ESP_LOGW(kLoggingTag, "SntpServer:      %s", Config.Get(ConfigurationKey::SntpServer).c_str());
-    ESP_LOGW(kLoggingTag, "SntpTz:          %s", Config.Get(ConfigurationKey::SntpTz).c_str());
-    ESP_LOGW(kLoggingTag, "MqttHost:        %s", Config.Get(ConfigurationKey::MqttHost).c_str());
-    ESP_LOGW(kLoggingTag, "MqttUser:        %s", Config.Get(ConfigurationKey::MqttUser).c_str());
-    ESP_LOGW(kLoggingTag, "MqttPassword:    %s", Config.Get(ConfigurationKey::MqttPassword).c_str());
-    ESP_LOGW(kLoggingTag, "MqttTopicPrefix: %s", Config.Get(ConfigurationKey::MqttTopicPrefix).c_str());
-    ESP_LOGW(kLoggingTag, "MqttHaDiscPref:  %s", Config.Get(ConfigurationKey::MqttHaDiscPref).c_str());
-    ESP_LOGW(kLoggingTag, "OtaActive:       %s", Config.Get(ConfigurationKey::OtaActive).c_str());
-    ESP_LOGW(kLoggingTag, "OtaPassword:     %s", Config.Get(ConfigurationKey::OtaPassword).c_str());
-    ESP_LOGW(kLoggingTag, "SyslogServer:    %s", Config.Get(ConfigurationKey::SyslogServer).c_str());
+    ESP_LOGW(kLoggingTag, "WifiSsid:        %s", Config.Get(ConfigKey::WifiSsid).c_str());
+    ESP_LOGW(kLoggingTag, "WifiPassword:    %s", Config.Get(ConfigKey::WifiPassword).c_str());
+    ESP_LOGW(kLoggingTag, "SntpServer:      %s", Config.Get(ConfigKey::SntpServer).c_str());
+    ESP_LOGW(kLoggingTag, "SntpTz:          %s", Config.Get(ConfigKey::SntpTz).c_str());
+    ESP_LOGW(kLoggingTag, "MqttHost:        %s", Config.Get(ConfigKey::MqttHost).c_str());
+    ESP_LOGW(kLoggingTag, "MqttUser:        %s", Config.Get(ConfigKey::MqttUser).c_str());
+    ESP_LOGW(kLoggingTag, "MqttPassword:    %s", Config.Get(ConfigKey::MqttPassword).c_str());
+    ESP_LOGW(kLoggingTag, "MqttTopicPrefix: %s", Config.Get(ConfigKey::MqttTopicPrefix).c_str());
+    ESP_LOGW(kLoggingTag, "MqttHaDiscPref:  %s", Config.Get(ConfigKey::MqttHaDiscPref).c_str());
+    ESP_LOGW(kLoggingTag, "OtaActive:       %s", Config.Get(ConfigKey::OtaActive).c_str());
+    ESP_LOGW(kLoggingTag, "OtaPassword:     %s", Config.Get(ConfigKey::OtaPassword).c_str());
+    ESP_LOGW(kLoggingTag, "SyslogServer:    %s", Config.Get(ConfigKey::SyslogServer).c_str());
     ESP_LOGW(kLoggingTag, "IsConfigured:    %d", IsConfigured);
 
 
-    if (Config.Get(ConfigurationKey::ApSecret).length()) {
+    if (Config.Get(ConfigKey::ApSecret).length()) {
         ESP_LOGW(kLoggingTag, "***********************************************");
-        ESP_LOGW(kLoggingTag, "*** ACCESS POINT PASSWORD: %-16s ***", Config.Get(ConfigurationKey::ApSecret).c_str());
+        ESP_LOGW(kLoggingTag, "*** ACCESS POINT PASSWORD: %-16s ***", Config.Get(ConfigKey::ApSecret).c_str());
     }
     ESP_LOGW(kLoggingTag, "***********************************************");
 
@@ -140,7 +146,7 @@ void Esp32IotBase::xTaskCreateMonitored(TaskFunction_t pvTaskCode, const char * 
 String Esp32IotBase::getCleanHostnameFromDeviceName_()
 {
     ESP_LOGD(kLoggingTag, "Entered function");
-    String clean_hostname =	Config.Get(ConfigurationKey::DeviceName, "Esp32IotBase-Device"); // Get device name from configuration
+    String clean_hostname =	Config.Get(ConfigKey::DeviceName, "Esp32IotBase-Device"); // Get device name from configuration
 
     clean_hostname.toLowerCase();
     for (int i = 0; i <= clean_hostname.length(); i++) {
@@ -168,7 +174,7 @@ void Esp32IotBase::handleQuickRebootsToResetConfig_()
     ESP_LOGI(kLoggingTag, "Reset reason (rtc): %d", resetReasonRtc);
     // reset button only pulls down CHIP_PU, so power on and reset button are the same here
     if (resetReasonRtc == RESET_REASON::POWERON_RESET || resetReasonRtc == RESET_REASON::RTCWDT_RTC_RESET) {
-        int quickRebootCounter = Config.GetInt(ConfigurationKey::QuickBootCount);
+        int quickRebootCounter = Config.GetInt(ConfigKey::QuickBootCount);
         ESP_LOGI(kLoggingTag, "Quick reboot counter: %d", quickRebootCounter);
         quickRebootCounter++;
 
@@ -177,7 +183,7 @@ void Esp32IotBase::handleQuickRebootsToResetConfig_()
             Config.Reset();
             ESP.restart();
         } else {
-            Config.SetInt(ConfigurationKey::QuickBootCount, quickRebootCounter);
+            Config.SetInt(ConfigKey::QuickBootCount, quickRebootCounter);
             Config.Save();
         };
     }
@@ -187,7 +193,7 @@ void Esp32IotBase::resetquickRebootCounterTimer_(TimerHandle_t xTimer)
 {
     ESP_LOGD(kLoggingTag, "Entered function");
     Esp32IotBase* iotBase = (Esp32IotBase*) pvTimerGetTimerID(xTimer);
-    iotBase->Config.SetInt(ConfigurationKey::QuickBootCount, 0);
+    iotBase->Config.SetInt(ConfigKey::QuickBootCount, 0);
     iotBase->Config.Save();
 }
 
@@ -195,7 +201,7 @@ void Esp32IotBase::checkConfigureSyslog_()
 {
 #ifndef ESP32IOTBASE_NO_SYSLOG
 
-        auto &syslogServer = Config.Get(ConfigurationKey::SyslogServer);
+        auto &syslogServer = Config.Get(ConfigKey::SyslogServer);
         if (!syslogServer.isEmpty())
         {
             ESP_LOGI(kLoggingTag, "* Syslog: Configuring to host %s ...", syslogServer.c_str());
@@ -214,8 +220,8 @@ void Esp32IotBase::checkConfigureSntp_()
 {
 #ifndef ESP32IOTBASE_NO_SNTP
 
-    auto &sntpServer = Config.Get(ConfigurationKey::SntpServer, "pool.ntp.org");
-    auto &sntpTz = Config.Get(ConfigurationKey::SntpTz, "CET-1CEST,M3.5.0/2:00,M10.5.0/3:00:");
+    auto &sntpServer = Config.Get(ConfigKey::SntpServer);
+    auto &sntpTz = Config.Get(ConfigKey::SntpTz);
     ESP_LOGI(kLoggingTag, "* SNTP: Configuring with server %s and TZ %s ...", sntpServer.c_str(), sntpTz.c_str());
 
     // sntp_setservername won't take const, so we need to copy it to a buffer first
@@ -237,11 +243,11 @@ void Esp32IotBase::checkConfigureMqtt_()
 {
 #ifndef ESP32IOTBASE_NO_MQTT
 
-    const auto &mqttHost = Config.Get(ConfigurationKey::MqttHost);
+    const auto &mqttHost = Config.Get(ConfigKey::MqttHost);
     if (!mqttHost.isEmpty()) {
         ESP_LOGI(kLoggingTag, "* MQTT: Configuring & connecting ...");
-        Mqtt.BeginWithHost(mqttHost, Config.Get(ConfigurationKey::MqttUser), Config.Get(ConfigurationKey::MqttPassword),
-                           Hostname, Config.Get(ConfigurationKey::MqttHaDiscPref));
+        Mqtt.BeginWithHost(mqttHost, Config.Get(ConfigKey::MqttUser), Config.Get(ConfigKey::MqttPassword),
+                           Hostname, Config.Get(ConfigKey::MqttHaDiscPref));
         ESP_LOGI(kLoggingTag, "* MQTT: -> Configuration completed.");
     } else {
         ESP_LOGI(kLoggingTag, "* MQTT: Not configured.");
@@ -255,9 +261,9 @@ void Esp32IotBase::checkConfigureOta_()
 #ifndef ESP32IOTBASE_NO_OTA
 
     // Set up Over-the-Air-Updates (OTA) if it hasn't been disabled.
-    if (!Config.Get(ConfigurationKey::OtaActive).equalsIgnoreCase("false")) {
+    if (!Config.Get(ConfigKey::OtaActive).equalsIgnoreCase("false")) {
 
-        String OtaPassword = Config.Get(ConfigurationKey::OtaPassword);
+        String OtaPassword = Config.Get(ConfigKey::OtaPassword);
 
         ESP_LOGI(kLoggingTag, "* OTA: Configuring with password %s ...", OtaPassword.c_str());
 
@@ -318,7 +324,9 @@ void Esp32IotBase::checkConfigureWebserver_()
     {
         ESP_LOGI(kLoggingTag, "* Web Server: Configuring ...");
 
-        String deviceName = Config.Get(ConfigurationKey::DeviceName);
+        Web.Config = &Config;
+
+        String deviceName = Config.Get(ConfigKey::DeviceName);
         if (deviceName == "") {
             deviceName = "Unconfigured Esp32IotBase Device";
         }
@@ -332,37 +340,37 @@ void Esp32IotBase::checkConfigureWebserver_()
 
         // Add the configuration form, that will include all inputs for config data
         Web.UiAddElement("configform", "form", "", "#wrapper"); Web.UiSetLastEleAttr("action", "#"); Web.UiSetLastEleAttr("onsubmit", "collectConfiguration()");
-        Web.UiAddElement("infotext1", "p", "Configure your device with the following options (!!!space to clear!!!):", "#configform");
+        Web.UiAddElement("infotext1", "p", "Configure your device with the following options (empty: use default value, space: override potential default with empty string):", "#configform");
 
-        Web.UiAddFormInput(ConfigurationKey::DeviceName, "Device name");
+        Web.UiAddFormInput(ConfigKey::DeviceName, "Device name"); Web.UiSetLastEleAttr("required", "1");
 
         #ifndef ESP32IOTBASE_NETWORK_ETHERNET
             // Add an input field for the WIFI data and link it to the corresponding configuration data
-            Web.UiAddFormInput(ConfigurationKey::WifiSsid, "WIFI SSID:");
-            Web.UiAddFormInput(ConfigurationKey::WifiPassword, "WIFI Password:"); Web.UiSetLastEleAttr("type", "password");
+            Web.UiAddFormInput(ConfigKey::WifiSsid, "WIFI SSID:");
+            Web.UiAddFormInput(ConfigKey::WifiPassword, "WIFI Password:"); Web.UiSetLastEleAttr("type", "password");
         #endif
 
         #ifndef ESP32IOTBASE_NO_SNTP
-            Web.UiAddFormInput(ConfigurationKey::SntpServer, "SNTP Server (if empty: pool.ntp.org)");
-            Web.UiAddFormInput(ConfigurationKey::SntpTz, "SNTP TZ (if empty: CET-1CEST,M3.5.0/2:00,M10.5.0/3:00:");
+            Web.UiAddFormInput(ConfigKey::SntpServer, "SNTP Server");
+            Web.UiAddFormInput(ConfigKey::SntpTz, "SNTP TZ");
         #endif
 
         #ifndef ESP32IOTBASE_NO_MQTT
             // Add input fields for MQTT configurations
-            Web.UiAddFormInput(ConfigurationKey::MqttHost, "MQTT Host (and optionally :port):");
-            Web.UiAddFormInput(ConfigurationKey::MqttUser, "MQTT User:");
-            Web.UiAddFormInput(ConfigurationKey::MqttPassword, "MQTT Password:"); Web.UiSetLastEleAttr("type", "password");
-            Web.UiAddFormInput(ConfigurationKey::MqttTopicPrefix, "MQTT Topic Prefix (suggested 'esp32-iotbase'):");
-            Web.UiAddFormInput(ConfigurationKey::MqttHaDiscPref, "Home Assistant MQTT Discovery Topic Prefix (suggested 'homeassistant', space/empty to disable):");
+            Web.UiAddFormInput(ConfigKey::MqttHost, "MQTT Host (format: host[:port]):");
+            Web.UiAddFormInput(ConfigKey::MqttUser, "MQTT User:");
+            Web.UiAddFormInput(ConfigKey::MqttPassword, "MQTT Password:"); Web.UiSetLastEleAttr("type", "password");
+            Web.UiAddFormInput(ConfigKey::MqttTopicPrefix, "MQTT Topic Prefix (suggested 'esp32-iotbase'):");
+            Web.UiAddFormInput(ConfigKey::MqttHaDiscPref, "Home Assistant MQTT Discovery Topic Prefix (suggested 'homeassistant', empty to disable):");
         #endif
 
         #ifndef ESP32IOTBASE_NO_OTA
-            Web.UiAddFormInput(ConfigurationKey::OtaActive, "OTA Active:");
-            Web.UiAddFormInput(ConfigurationKey::OtaPassword, "OTA Password:"); Web.UiSetLastEleAttr("type", "password");
+            Web.UiAddFormInput(ConfigKey::OtaActive, "OTA Active:");
+            Web.UiAddFormInput(ConfigKey::OtaPassword, "OTA Password:"); Web.UiSetLastEleAttr("type", "password");
         #endif
 
         #ifndef ESP32IOTBASE_NO_SYSLOG
-            Web.UiAddFormInput(ConfigurationKey::SyslogServer, "Syslog Server (space/empty to disable):");
+            Web.UiAddFormInput(ConfigKey::SyslogServer, "Syslog Server (space/empty to disable):");
         #endif
 
         // Add a save button that calls the JavaScript function collectConfiguration() on click
