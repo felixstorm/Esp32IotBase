@@ -30,6 +30,10 @@
 #include "WebServer/WebServer.hpp"
 #endif
 
+#if !(defined(ESP32IOTBASE_NO_WEB) || defined(ESP32IOTBASE_NO_MDNS))
+#include <ESPmDNS.h>
+#endif
+
 #if !(defined(ESP32IOTBASE_NO_WEB) || defined(ESP32IOTBASE_NO_CAPTIVE_PORTAL))
 #include <DNSServer.h>
 #endif
@@ -85,6 +89,9 @@ class Esp32IotBase
         WebServer Web;
 #endif
 
+        void xTaskCreateMonitored(TaskFunction_t pvTaskCode, const char * const pcName, const uint32_t usStackDepth, void * const pvParameters, UBaseType_t uxPriority);
+        void ResetNetworkConnectedWatchdog() { Network.ResetNetworkConnectedWatchdog(); }
+
     private:
         SetupModeWifiEncryption setupModeWifiEncryption_;
         ConfigurationUI configurationUi_;
@@ -105,3 +112,8 @@ class Esp32IotBase
         static void dnsHandlerTask_(void* dnsServerPointer);
 #endif
 };
+
+extern Esp32IotBase IotBase;
+
+// avoid circular dependecies for EspIdfMqttClient
+void IotBase_ResetNetworkConnectedWatchdog();

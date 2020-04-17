@@ -8,7 +8,7 @@ namespace {
     const constexpr unsigned minApSecretLength = 8;
 }
 
-void NetworkControlWiFi::Begin(Configuration& configuration, bool encryptAp, String fixedApPassword, String hostname)
+void NetworkControlWiFi::Begin(Configuration& configuration, String hostname, bool encryptAp, String fixedApPassword)
 {
     configureNetworkConnectionWdt_();
 

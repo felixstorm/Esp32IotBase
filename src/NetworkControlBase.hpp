@@ -23,7 +23,7 @@ class NetworkControlBase {
         };
 
         NetworkControlBase(){};
-        virtual void Begin(Configuration& configuration, bool encryptAp, String fixedApPassword, String hostname = "Esp32IotDevice") = 0;
+        virtual void Begin(Configuration& configuration, String hostname, bool encryptAp, String fixedApPassword) = 0;
         virtual String GetMacAddress(const String& delimiter = {}) = 0;
 
         virtual bool IsConnected();

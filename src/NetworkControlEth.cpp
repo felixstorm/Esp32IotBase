@@ -5,7 +5,7 @@ namespace {
     const constexpr char* kLoggingTag = "IotBaseNetwork";
 }
 
-void NetworkControlEth::Begin(Configuration& configuration, bool encryptAp, String fixedApPassword, String hostname)
+void NetworkControlEth::Begin(Configuration& configuration, String hostname, bool encryptAp, String fixedApPassword)
 {
     configureNetworkConnectionWdt_();
 

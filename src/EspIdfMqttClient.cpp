@@ -45,6 +45,8 @@ EspIdfMqttClient& EspIdfMqttClient::BeginWithUri(const String& mqttUri, const St
         mqtt_cfg.uri = mqttUri.c_str();
         mqtt_cfg.event_handle = StaticEventHandler;
         mqtt_cfg.user_context = this;
+        // paranoia: reconnect once in a while to make sure isConnected_ is really in sync with really
+        mqtt_cfg.refresh_connection_after_ms = 1000 * 60 * 60 * 24; // 24 hours
         mqtt_cfg.client_id = clientId.c_str();
         mqttClient = esp_mqtt_client_init(&mqtt_cfg);
         
@@ -68,17 +70,20 @@ EspIdfMqttClient& EspIdfMqttClient::OnConnect(OnConnectUserCallback callback) {
 
 esp_err_t EspIdfMqttClient::StaticEventHandler(esp_mqtt_event_handle_t event)
 {
-    ESP_LOGD(kLoggingTag, "Event received: %i", (int)event->event_id);
+    ESP_LOGD(kLoggingTag, "Event received: %d", event->event_id);
 
     return reinterpret_cast<EspIdfMqttClient*>(event->user_context)->EventHandler(event);
 }
 
 esp_err_t EspIdfMqttClient::EventHandler(esp_mqtt_event_handle_t event)
 {
+    ESP_LOGD(kLoggingTag, "Event received: %d", event->event_id);
+
     switch (event->event_id)
     {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(kLoggingTag, "Connected");
+        IotBase_ResetNetworkConnectedWatchdog();
         isConnected_ = true;
         for (auto callback : _onConnectUserCallbacks)
             callback();
@@ -89,6 +94,11 @@ esp_err_t EspIdfMqttClient::EventHandler(esp_mqtt_event_handle_t event)
         isConnected_ = false;
         break;
     
+    case MQTT_EVENT_PUBLISHED:
+    case MQTT_EVENT_DATA:
+        IotBase_ResetNetworkConnectedWatchdog();
+        break;
+
     // ignore the rest
     default:
         break;
@@ -106,8 +116,11 @@ void EspIdfMqttClient::Publish(const String& message, bool retain /* = false */,
     ESP_LOGI(kLoggingTag, "topic: %s, retain: %u, message: %s", topicInt.c_str(), retain, message.c_str());
 
     int publishResult = -1;
-    if (mqttClient)
+    if (mqttClient) {
         publishResult = esp_mqtt_client_publish(mqttClient, topicInt.c_str(),  message.c_str(), 0, 0, retain);
+        if (isConnected_ && publishResult >= 0)
+            IotBase_ResetNetworkConnectedWatchdog();
+    }
 
     ESP_LOGI(kLoggingTag, "publish result: %i", publishResult);
 }

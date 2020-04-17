@@ -9,6 +9,8 @@
 
 namespace {
     const constexpr char* kLoggingTag = "IotBaseNetwork";
+
+    const ulong kNetworkConnectedWdtTimeout = 1000UL * 60 * 15; // 15 minutes
 }
 
 bool NetworkControlBase::IsConnected()
@@ -31,6 +33,8 @@ NetworkControlBase::Mode NetworkControlBase::GetWiFiOperationMode() const
 
 void NetworkControlBase::ResetNetworkConnectedWatchdog()
 {
+    ESP_LOGD(kLoggingTag, "Entered function, networkConnectedWdtHandle_: %p", networkConnectedWdtHandle_);
+
     if (networkConnectedWdtHandle_)
         xTimerReset(networkConnectedWdtHandle_, (TickType_t)0);
 }
@@ -40,7 +44,7 @@ IPAddress NetworkControlBase::localIp_;
 void NetworkControlBase::configureNetworkConnectionWdt_()
 {
     // prepare Network Connected WDT
-    networkConnectedWdtHandle_ = xTimerCreate("NetConnWdt", pdMS_TO_TICKS(60 * 60 * 1000), pdFALSE, (void *)0, networkConnectedWdtElapsed_);
+    networkConnectedWdtHandle_ = xTimerCreate("NetConnWdt", pdMS_TO_TICKS(kNetworkConnectedWdtTimeout), pdFALSE, (void *)0, networkConnectedWdtElapsed_);
     xTimerStart(networkConnectedWdtHandle_, 0);
 }
 
@@ -58,5 +62,8 @@ void NetworkControlBase::waitForConnection_()
 void NetworkControlBase::networkConnectedWdtElapsed_(TimerHandle_t xTimer)
 {
     // apparently something is broken with the network, so we reset and hope that this will solve it...
+    ESP_LOGW(kLoggingTag, "Network connected WDT expirered, restarting!");
+
+    delay(2000);
     ESP.restart();
 }

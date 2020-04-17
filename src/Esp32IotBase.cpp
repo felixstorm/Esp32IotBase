@@ -11,6 +11,10 @@
 
 namespace {
     const constexpr char* kLoggingTag = "IotBase";
+
+    const ulong kSystemInfoInterval = 1000UL * 60 * 5;   // 5 minutes
+
+    std::vector<TaskHandle_t> tasksToWatch;
 }
 
 #ifndef ESP32IOTBASE_NO_SYSLOG
@@ -20,7 +24,6 @@ Esp32ExtendedLogging Esp32ExtLog;
 
 
 Esp32IotBase::Esp32IotBase(SetupModeWifiEncryption setupModeWifiEncryption, ConfigurationUI configurationUi) : 
-    Config(), 
     setupModeWifiEncryption_(setupModeWifiEncryption), 
     configurationUi_(configurationUi)
 {
@@ -40,7 +43,7 @@ void Esp32IotBase::Begin(String fixedWiFiApEncryptionPassword)
     handleQuickRebootsToResetConfig_();
 
     // Start network
-    Network.Begin(Config, setupModeWifiEncryption_ == SetupModeWifiEncryption::secured, fixedWiFiApEncryptionPassword, Hostname);
+    Network.Begin(Config, Hostname, setupModeWifiEncryption_ == SetupModeWifiEncryption::secured, fixedWiFiApEncryptionPassword);
 
     // Get MAC (WiFi STA or Ethernet)
     Mac = Network.GetMacAddress(":");
@@ -94,15 +97,50 @@ void Esp32IotBase::Handle()
     #ifndef ESP32IOTBASE_NO_OTA
         ArduinoOTA.handle();
     #endif
+
+    if (IsConfigured) {
+        // periodically dump some system information
+        static ulong lastSystemInfo = 0;
+        if (lastSystemInfo == 0 || millis() - lastSystemInfo > kSystemInfoInterval)
+        {
+            ESP_LOG_SYSINFO(ESP_LOG_INFO, lastSystemInfo == 0);
+
+            // when CONFIG_FREERTOS_USE_TRACE_FACILITY is defined, ESP_LOG_SYSINFO will already have included this
+            #ifndef CONFIG_FREERTOS_USE_TRACE_FACILITY
+                ESP_LOGI("SysInfo", "*** FreeRTOS Task Stack High Water Marks ***");
+                for(TaskHandle_t t : tasksToWatch) {
+                    ESP_LOGI("SysInfo", "%-15s (%p)  %u bytes", pcTaskGetTaskName(t), t, uxTaskGetStackHighWaterMark(t));
+                }
+            #endif
+
+            lastSystemInfo = millis();
+        }
+    }
+
+    // be nice and let other tasks do stuff as well (although it does not seem to be strictly neccessary on core 1)
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+}
+
+// create tasks in a standardized fashion and add them to a watch list to be able to dump it's stack high water mark later on
+void Esp32IotBase::xTaskCreateMonitored(TaskFunction_t pvTaskCode, const char * const pcName, const uint32_t usStackDepth, void * const pvParameters, UBaseType_t uxPriority)
+{
+    TaskHandle_t taskHandle;
+    int taskCreateResult;
+    // all our tasks (including AsyncTCP) run on core 1 for now (otherwise async_tcp task might sometimes block idle task on 0 causing watchdog exception)
+    if ((taskCreateResult = xTaskCreatePinnedToCore(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, &taskHandle, CONFIG_ARDUINO_RUNNING_CORE)) != pdPASS)
+    {
+        ESP_LOGE(pcName, "ERROR calling xTaskCreate: %i, stopping.", taskCreateResult);
+        for(;;);
+    }
+
+    tasksToWatch.push_back(taskHandle);
 }
 
 String Esp32IotBase::getCleanHostnameFromDeviceName_()
 {
     ESP_LOGD(kLoggingTag, "Entered function");
-    String clean_hostname =	Config.Get(ConfigurationKey::DeviceName); // Get device name from configuration
-    if (clean_hostname == "") {
-        return "Esp32IotBase-Device";
-    }
+    String clean_hostname =	Config.Get(ConfigurationKey::DeviceName, "Esp32IotBase-Device"); // Get device name from configuration
 
     clean_hostname.toLowerCase();
     for (int i = 0; i <= clean_hostname.length(); i++) {
@@ -336,6 +374,16 @@ void Esp32IotBase::checkConfigureWebserver_()
         Web.UiAddElement("footer", "footer", "Powered by ", "body");
         Web.UiAddElement("footerlink", "a", "Esp32IotBase", "footer"); Web.UiSetLastEleAttr("href", "https://github.com/felixstorm/Esp32IotBase"); Web.UiSetLastEleAttr("target", "_blank");
 
+        #ifndef ESP32IOTBASE_NO_MDNS
+                ESP_LOGI(kLoggingTag, "* MDNS responder: Configuring ...");
+                if (MDNS.begin(Hostname.c_str())) {
+                    MDNS.addService("http", "tcp", 80);
+                    ESP_LOGI(kLoggingTag, "* MDNS responder: -> Configuration completed.");
+                } else {
+                    ESP_LOGE(kLoggingTag, "* MDNS responder: -> ERROR: Configuration failed!");
+                }
+        #endif
+
         #ifndef ESP32IOTBASE_NO_CAPTIVE_PORTAL
             if (Network.GetWiFiOperationMode() == NetworkControlBase::Mode::accessPoint) {
                 ESP_LOGI(kLoggingTag, "* Initializing captive portal (web request handler & wildcard DNS server)");
@@ -373,3 +421,8 @@ void Esp32IotBase::dnsHandlerTask_(void* dnsServerPointer)
         }
     #endif
 };
+
+void IotBase_ResetNetworkConnectedWatchdog()
+{
+    IotBase.Network.ResetNetworkConnectedWatchdog();
+}
